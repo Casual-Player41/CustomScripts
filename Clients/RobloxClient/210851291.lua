@@ -5,9 +5,9 @@
   * Game link: https://www.roblox.com/games/537413528/Build-A-Boat-For-Treasure
 ]]
 
+
 if not rbxcli then return end
 if not (tonumber(game.UniverseId) == 210851291) then return end
-
 
 _G.AutofarmEnabled = true
 
@@ -22,16 +22,19 @@ TweenService._UpdateFrequency = 144
 
 local EasingFunctions = {
   Linear = function(t) return t end,
+
   Sine = {
     In = function(t) return 1 - math.cos((t * math.pi) / 2) end,
     Out = function(t) return math.sin((t * math.pi) / 2) end,
     InOut = function(t) return -(math.cos(math.pi * t) - 1) / 2 end
   },
+
   Quad = {
     In = function(t) return t * t end,
     Out = function(t) return 1 - (1 - t) * (1 - t) end,
     InOut = function(t) return t < 0.5 and 2 * t * t or 1 - (-2 * t + 2) ^ 2 / 2 end
   },
+
   Cubic = {
     In = function(t) return t * t * t end,
     Out = function(t) return 1 - (1 - t) ^ 3 end,
@@ -52,6 +55,7 @@ end
 local function CreateVector3(x, y, z)
   local ok, vec = pcall(function() return Vector3.new(x, y, z) end)
   if ok then return vec end
+
   return { x = x, y = y, z = z }
 end
 
@@ -350,16 +354,17 @@ _G.TweenService = TweenService
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-
 local Variables = {
   TweenSpeed = 390, -- Studs / s
 }
 
 
-
 --== Functions ==--
 local MyFunctions = {}
+local RbxCli = {}
+local GameFunctions = {}
 
+-- // My Functions \\ --
 MyFunctions.GetCharacter = function()
   return LocalPlayer.Character
 end
@@ -369,6 +374,12 @@ MyFunctions.GetHrp = function()
   return Character:FindFirstChild("HumanoidRootPart")
 end
 
+MyFunctions.GetHumanoid = function()
+  local Character = MyFunctions.GetCharacter(); if not Character then return end
+  return Character:FindFirstChildOfClass("Humanoid")
+end
+
+
 MyFunctions.SetCanCollide = function(part: Instance, status: boolean)
   for _, child in pairs(part:GetChildren()) do
     if child:IsA("BasePart") then
@@ -377,29 +388,35 @@ MyFunctions.SetCanCollide = function(part: Instance, status: boolean)
   end
 end
 
-MyFunctions.TeleportTo = function(position: Vector3)
+MyFunctions.TweenTpTo = function(position: Vector3)
   local Character = MyFunctions.GetCharacter(); if not Character then return end
   local Hrp = MyFunctions.GetHrp(); if not Hrp then return end
-  MyFunctions.SetCanCollide(MyFunctions.GetCharacter(), true)
 
-  local sucess, CurrentPos = pcall(function()
-    return Hrp.Position
-  end)
+  MyFunctions.SetCanCollide(Character, true)
 
-  if not sucess then return end
+  local success, CurrentPos = pcall(function() return Hrp.Position end)
+
+  if not success then return end
+  
   local Distance = (position - CurrentPos).Magnitude
   local Duration = Distance / Variables.TweenSpeed
-  -- print("Tween distance: ", Distance, "Duration: ", Duration) -- debug
 
+  local TargetCFrame = CFrame.lookAt(CurrentPos, position)
   local TweenInfo = TweenService.TweenInfo.new(Duration, "Linear", "InOut")
 
   local Tween = TweenService:Create(Hrp, TweenInfo, {
-    CFrame = CFrame.new(position)
+    CFrame = CFrame.new(position) * TargetCFrame.Rotation
   })
 
   Tween:Play()
 
-  while Tween.IsPlaying and Character.Parent do
+  -- This loop ensures we stop if the character dies OR the farm is toggled off
+  while Tween.IsPlaying and Character.Parent and _G.AutofarmEnabled do
+    local Hum = MyFunctions.GetHumanoid()
+    if not Hum or Hum.Health <= 0 then 
+      Tween:Stop() 
+      break 
+    end
     TweenService._wait(0.05)
   end
 
@@ -408,21 +425,42 @@ MyFunctions.TeleportTo = function(position: Vector3)
   Hrp.Velocity = Vector3.new(0,0,0) 
   Hrp.AssemblyLinearVelocity = Vector3.new(0,0,0)
 
-  MyFunctions.SetCanCollide(MyFunctions.GetCharacter() ,false)
+  MyFunctions.SetCanCollide(Character, false)
 end
 
+
+-- // RbxCli functions \\ --
+RbxCli.Notify = function(Content: string, Duration: number)
+  rbxcli.display_notification(Content, Duration)
+end
+
+--
+GameFunctions.IsAlive = function()
+  local Hum = MyFunctions.GetHumanoid(); return Hum and Hum.Parent and Hum.Health > 0
+end
+
+
+GameFunctions.Autofarm = function()
+  MyFunctions.TweenTpTo(Vector3.new(-55, 80, 1210));   if not GameFunctions.IsAlive() then return false end
+  MyFunctions.TweenTpTo(Vector3.new(-55, 80, 8718));   if not GameFunctions.IsAlive() then return false end
+  MyFunctions.TweenTpTo(Vector3.new(-55, -360, 9496)); if not GameFunctions.IsAlive() then return false end
+  
+  return true
+end
+
+-- // Code \\ --
 task.spawn(function()
   while true do
-    if _G.AutofarmEnabled then
+    task.wait(0.3)
+    if not _G.AutofarmEnabled then continue end
+    local success, completed = pcall(GameFunctions.Autofarm)
 
-      MyFunctions.TeleportTo(Vector3.new(-55, 80, 1210))
-      MyFunctions.TeleportTo(Vector3.new(-55, 80, 8718))
-      MyFunctions.TeleportTo(Vector3.new(-55, -360, 9496))
-
-      rbxcli.display_notification("Reached the end.. waiting 16 seconds", 16)
-
+    if success and completed == true then
+      RbxCli.Notify("Reached the end.. waiting 16 seconds", 16)
       task.wait(16)
+    else
+      RbxCli.Notify("Player died or something happened. Retrying in 3 seconds.", 3)
+      task.wait(3)
     end
-    task.wait(0.2) -- just in case..
   end
 end)

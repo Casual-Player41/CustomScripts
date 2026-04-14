@@ -4,38 +4,34 @@
   * Game UniverseId: 9844978459
   * Game link: https://www.roblox.com/games/123368132872113/FISH-OS-IDLE-FISHING-SIMULATOR
 
-  * Script version: 1.0.0
+  * Script version: 1.0.1
 ]]
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui"); if not PlayerGui then error("No playergui?", 2); return end
+local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui"); if not PlayerGui then error("No playergui?", 1); return end
 
 local FishOsScreenGui = PlayerGui:FindFirstChild("FishOS"); if not FishOsScreenGui then error("No Fish Os?", 2); return end
 local DesktopBtn = FishOsScreenGui:FindFirstChild("Desktop"); if not DesktopBtn then error("No desktop button?", 2); return end
 
 
 
---#region -- Start of "MyVariables"
-
-
-
-local MyVariables = {
+local Variables = {
   DebugMode = true,
   ScriptTitle = "Kitty - Fish OS",
 
-  State = "WaitBobber", -- Minigame, FoundBobber, ClickBobber, WaitBobber
+  State = "WaitBobber", -- MinigaMme, FoundBobber, ClickBobber, WaitBobber
   FarmPos = Vector2.new(0, 440),
+  Autofarm = false,
 }
 
---#endregion -- End of "MyVariables"
 
 
 --#region -- Start of "MyFunctions"
 local MyFunctions = {}
 
 MyFunctions.DebugPrint = function(Type: string, ...)
-  if not MyVariables.DebugMode then return end
+  if not Variables.DebugMode then return end
 
   local args = { ... }
   local message = table.concat(args, " ")
@@ -46,29 +42,34 @@ MyFunctions.DebugPrint = function(Type: string, ...)
   Type = string.lower(Type)
 
   if Type == "print" then
-    print(string.format("[ %s ] (%s): %s", MyVariables.ScriptTitle, timeStr, message))
+    print(string.format("[ %s ] (%s): %s", Variables.ScriptTitle, timeStr, message))
 
   elseif Type == "warn" then
-    warn(string.format("[ %s ] (%s): %s", MyVariables.ScriptTitle, timeStr, message))
+    warn(string.format("[ %s ] (%s): %s", Variables.ScriptTitle, timeStr, message))
 
   elseif Type == "debug" then
-    print(string.format("[ %s ] [DEBUG] (%s): %s", MyVariables.ScriptTitle, timeStr, message))
+    print(string.format("[ %s ] [DEBUG] (%s): %s", Variables.ScriptTitle, timeStr, message))
 
   elseif Type == "info" then
-    print(string.format("[ %s ] (%s): %s", MyVariables.ScriptTitle, timeStr, message))
+    print(string.format("[ %s ] (%s): %s", Variables.ScriptTitle, timeStr, message))
 
   else
-    print(string.format("[ %s ] (%s): %s", MyVariables.ScriptTitle, timeStr, message))
+    print(string.format("[ %s ] (%s): %s", Variables.ScriptTitle, timeStr, message))
   end
 end
-
+--[[
+MyFunctions.RandomizeFarmPos = function()
+  Variables.FarmPos = Vector2.new(math.random(0, 6), math.random(50, 950))
+  MyFunctions.DebugPrint("debug", "New farm position: ", Variables.FarmPos)
+end
+--]]
 MyFunctions.AutoFish = function()
-  if MyVariables.State ~= "WaitBobber" then return end
+  if Variables.State ~= "WaitBobber" then return end
 
   local Mouse = LocalPlayer:GetMouse()
-  if Mouse.X ~= MyVariables.FarmPos.X or Mouse.Y ~= MyVariables.FarmPos.Y then
-    mousemoveabs(MyVariables.FarmPos.X, MyVariables.FarmPos.Y)
-    task.wait(0.1)
+  if Mouse.X ~= Variables.FarmPos.X or Mouse.Y ~= Variables.FarmPos.Y then
+    mousemoveabs(Variables.FarmPos.X, Variables.FarmPos.Y)
+    task.wait()
     mouse1click()
   else
     mouse1click()
@@ -76,18 +77,18 @@ MyFunctions.AutoFish = function()
 end
 
 MyFunctions.WaitForBobber = function()
-  if MyVariables.State ~= "WaitBobber" then return end
+  if Variables.State ~= "WaitBobber" then return end
   local Bobber = DesktopBtn:FindFirstChild("Bobber"); if not Bobber then return end
 
 
   if Bobber then
     MyFunctions.DebugPrint("debug", "Bobber detected")
-    MyVariables.State = "FoundBobber"
+    Variables.State = "FoundBobber"
   end
 end
 
 MyFunctions.ClickBobber = function()
-    if MyVariables.State ~= "FoundBobber" then return end
+    if Variables.State ~= "FoundBobber" then return end
 
     local startTime = tick()
     
@@ -105,27 +106,27 @@ MyFunctions.ClickBobber = function()
         task.wait(0.05)
         
         if tick() - startTime > 5 then 
-            MyVariables.State = "WaitBobber"
+            Variables.State = "WaitBobber"
             return 
         end
     until FishOsScreenGui:FindFirstChild("MinigameOverlay")
 
     MyFunctions.DebugPrint("debug", "Clicked bobber.")
-    MyVariables.State = "Minigame"
+    Variables.State = "Minigame"
 end
-
+--[[
 MyFunctions.AutoMinigame = function()
-  if MyVariables.State ~= "Minigame" then return end
+  if Variables.State ~= "Minigame" then return end
  
-  local MinigameOverlay = FishOsScreenGui:FindFirstChild("MinigameOverlay"); if not MinigameOverlay then MyVariables.State = "WaitBobber"; return end
-  local BarOuter = MinigameOverlay:FindFirstChild("BarOuter"); if not BarOuter then MyVariables.State = "WaitBobber"; return end
-  local FishingBar = BarOuter:FindFirstChild("FishingBar"); if not FishingBar then MyVariables.State = "WaitBobber"; return end
-  local CatchZone = FishingBar:FindFirstChild("CatchZone"); if not CatchZone then MyVariables.State = "WaitBobber"; return end
-  local FishIcon = FishingBar:FindFirstChild("FishIcon"); if not FishIcon then MyVariables.State = "WaitBobber"; return end
+  local MinigameOverlay = FishOsScreenGui:FindFirstChild("MinigameOverlay"); if not MinigameOverlay then Variables.State = "WaitBobber"; return end
+  local BarOuter = MinigameOverlay:FindFirstChild("BarOuter"); if not BarOuter then Variables.State = "WaitBobber"; return end
+  local FishingBar = BarOuter:FindFirstChild("FishingBar"); if not FishingBar then Variables.State = "WaitBobber"; return end
+  local CatchZone = FishingBar:FindFirstChild("CatchZone"); if not CatchZone then Variables.State = "WaitBobber"; return end
+  local FishIcon = FishingBar:FindFirstChild("FishIcon"); if not FishIcon then Variables.State = "WaitBobber"; return end
 
 
   while true do
-    if not FishOsScreenGui:FindFirstChild("MinigameOverlay") then MyVariables.State = "WaitBobber"; return end
+    if not FishOsScreenGui:FindFirstChild("MinigameOverlay") then Variables.State = "WaitBobber"; return end
 
     if CatchZone.AbsolutePosition.Y - FishIcon.AbsolutePosition.Y > 0 then
       mouse1press()
@@ -137,27 +138,85 @@ MyFunctions.AutoMinigame = function()
     task.wait()
   end
   MyFunctions.DebugPrint("debug", "Fish caught!")
-  MyVariables.State = "WaitBobber"
+  Variables.State = "WaitBobber"
   return
 end
+]]
+
+MyFunctions.AutoMinigame = function()
+	if Variables.State ~= "Minigame" then return end
+
+	local MinigameOverlay = FishOsScreenGui:FindFirstChild("MinigameOverlay")
+	if not MinigameOverlay then Variables.State = "WaitBobber"; return end
+	
+	local BarOuter = MinigameOverlay:FindFirstChild("BarOuter")
+	local FishingBar = BarOuter and BarOuter:FindFirstChild("FishingBar")
+	local CatchZone = FishingBar and FishingBar:FindFirstChild("CatchZone")
+	local FishIcon = FishingBar and FishingBar:FindFirstChild("FishIcon")
+
+	if not (BarOuter and FishingBar and CatchZone and FishIcon) then
+		Variables.State = "WaitBobber"
+		return
+	end
+
+	local Holding = false
+
+	while Variables.State == "Minigame" do
+		if not FishOsScreenGui:FindFirstChild("MinigameOverlay") then
+			Variables.State = "WaitBobber"
+			break
+		end
+
+		local diff = CatchZone.AbsolutePosition.Y - FishIcon.AbsolutePosition.Y
+
+		if math.abs(diff) < 5 then
+			if Holding then
+				mouse1release()
+				Holding = false
+			end
+
+		elseif diff > 0 then
+			if not Holding then
+				mouse1press()
+				Holding = true
+			end
+
+		else
+			if Holding then
+				mouse1release()
+				Holding = false
+			end
+		end
+
+		task.wait()
+	end
+
+	if Holding then
+		mouse1release()
+	end
+
+	Variables.State = "WaitBobber"
+end
+
+
+--#endregion -- End of "MyFunctions"
 
 MyFunctions.Run = function()
-    local State = MyVariables.State
+  local State = Variables.State
     
-    if State == "WaitBobber" then
-        local Bobber = DesktopBtn:FindFirstChild("Bobber")
-        if Bobber then
-            MyVariables.State = "FoundBobber"
-        else
-            MyFunctions.AutoFish() 
-        end
-        
-    elseif State == "FoundBobber" then
-        MyFunctions.ClickBobber()
-        
-    elseif State == "Minigame" then
-        MyFunctions.AutoMinigame()
+  if State == "WaitBobber" then
+    local Bobber = DesktopBtn:FindFirstChild("Bobber")
+    if Bobber then
+      Variables.State = "FoundBobber"
+    else
+      MyFunctions.AutoFish() 
     end
+  elseif State == "FoundBobber" then
+    MyFunctions.ClickBobber()
+        
+  elseif State == "Minigame" then
+    MyFunctions.AutoMinigame()
+  end
 end
 --#endregion -- End of "MyFunctions"
 

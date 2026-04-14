@@ -4,8 +4,12 @@
   * Game UniverseId: 9844978459
   * Game link: https://www.roblox.com/games/123368132872113/FISH-OS-IDLE-FISHING-SIMULATOR
 
-  * Script version: 1.0.1
+  * Script version: 1.0.0
 ]]
+
+if tonumber(game.GameId) ~= 944978459 then
+  error("This script is only for Fish.OS! Game link: https://www.roblox.com/games/123368132872113/FISH-OS-IDLE-FISHING-SIMULATOR")
+end
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -63,13 +67,14 @@ MyFunctions.RandomizeFarmPos = function()
   MyFunctions.DebugPrint("debug", "New farm position: ", Variables.FarmPos)
 end
 --]]
+
 MyFunctions.AutoFish = function()
   if Variables.State ~= "WaitBobber" then return end
 
   local Mouse = LocalPlayer:GetMouse()
   if Mouse.X ~= Variables.FarmPos.X or Mouse.Y ~= Variables.FarmPos.Y then
     mousemoveabs(Variables.FarmPos.X, Variables.FarmPos.Y)
-    task.wait()
+    task.wait(0.08)
     mouse1click()
   else
     mouse1click()

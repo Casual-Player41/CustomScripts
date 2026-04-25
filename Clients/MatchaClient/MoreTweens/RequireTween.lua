@@ -521,4 +521,4 @@ local TweenTpTo = function(position: Vector3, speed: number, easingStyle: string
   -- Hrp.AssemblyAngularVelocity = Vector3.zero
 end
 
-return TweenTpTo
+_G.TweenTpTo = TweenTpTo

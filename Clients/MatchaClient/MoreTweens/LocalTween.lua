@@ -2,7 +2,13 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-
+local Configs = {
+  Tween = {
+    speed = 350,
+    easingStyle = "Linear",
+    easingDirection = "InOut",
+  }
+}
 
 --#region -- Tween Service implementetion
 local TweenService = {}
@@ -201,7 +207,9 @@ local function GetEasingFunction(easingStyle, easingDirection)
   if easingStyle == "Linear" then
     return EasingFunctions.Linear
   end
+
   local style = EasingFunctions[easingStyle]
+
   if style then
     if easingDirection == "In" then return style.In end
     if easingDirection == "Out" then return style.Out end
@@ -326,18 +334,20 @@ end
 function Tween:Update(deltaTime)
   if not self.IsPlaying then return false end
   self.CurrentTime = self.CurrentTime + deltaTime
-  local tweenInfo = self.TweenInfo
-  if not tweenInfo then return false end
+
+  local tweenInfo = self.TweenInfo; if not tweenInfo then return false end
 
   if self.CurrentTime < tweenInfo.DelayTime then return true end
 
   local easingFunc = GetEasingFunction(tweenInfo.EasingStyle, tweenInfo.EasingDirection)
   local totalDuration = tweenInfo.Time or 1
   local adjustedTime = self.CurrentTime - tweenInfo.DelayTime
-  local runsNeeded = (tweenInfo.RepeatCount == 0) and 1 or tweenInfo.RepeatCount
-  local totalTimeNeeded = tweenInfo.DelayTime + totalDuration * runsNeeded
+  local infinite = tweenInfo.RepeatCount < 0
+  local runsNeeded = infinite and math.huge or (tweenInfo.RepeatCount == 0 and 1 or tweenInfo.RepeatCount)
 
-  if self.CurrentTime >= totalTimeNeeded then
+  
+
+  if not infinite and adjustedTime >= totalDuration * runsNeeded then
     pcall(function()
       for prop, targetValue in pairs(self.Properties) do
         self.Instance[prop] = targetValue
@@ -349,7 +359,14 @@ function Tween:Update(deltaTime)
   end
 
   local loopProgress = (adjustedTime % totalDuration) / totalDuration
-  if self.CurrentDirection == -1 then loopProgress = 1 - loopProgress end
+  
+  if tweenInfo.Reverses then
+  local cycle = math.floor(adjustedTime / totalDuration)
+  if cycle % 2 == 1 then
+    loopProgress = 1 - loopProgress
+  end
+end
+
   local alpha = easingFunc(loopProgress)
 
   for prop, targetValue in pairs(self.Properties) do
@@ -363,7 +380,7 @@ function Tween:Update(deltaTime)
           self.Instance[prop] = cf
         end)
 
-      -- Existing Vector3 handling
+      -- Vetor3 handling
       elseif type(initialValue) == "table" and initialValue.type == "Vector3"
         and type(targetValue) == "table"
         and (targetValue.type == "Vector3" or (targetValue.x and targetValue.y and targetValue.z)) then
@@ -376,6 +393,8 @@ function Tween:Update(deltaTime)
         pcall(function()
           self.Instance[prop] = Vector3.new(nx, ny, nz)
         end)
+
+
 
       -- Table handling
       elseif type(targetValue) == "table" and type(initialValue) == "table" and initialValue.type == nil then
@@ -396,7 +415,7 @@ function Tween:Update(deltaTime)
           self.Instance[prop] = newValue
         end)
 
-      -- Number fallback
+      -- Fallback handling
       else
         if type(initialValue) == "number" and type(targetValue) == "number" then
           pcall(function()
@@ -486,38 +505,80 @@ local GetHumanoid = function(character: Model)
   return Humanoid
 end
 
+local WaitForTween = function(tween, timeout)
+  local finished = false
+  local result = nil
 
-local TweenTpTo = function(position: Vector3, speed: number, easingStyle: string?, easingDirection: string?, onComplete: (() -> ())?)
+  local connection
+
+  connection = tween.Completed:Connect(function(state)
+    finished = true
+    result = state
+
+    if connection then
+      connection:Disconnect()
+      connection = nil
+    end
+  end)
+
+  tween:Play()
+
+  local startTime = os.clock()
+
+  while not finished do
+    if os.clock() - startTime > timeout then
+      tween:Stop()
+      if connection then
+        connection:Disconnect()
+        connection = nil
+      end
+      return "Cancelled"
+    end
+
+    task.wait()
+  end
+
+  return result or "Completed"
+end
+
+
+
+local TweenTpTo = function(position: Vector3, speed: number?, easingStyle: string?, easingDirection: string?, repeatCount: number?, reverses: boolean?, delayTime: number?, onComplete: (() -> ())?)
   local Character = GetCharacter(LocalPlayer); if not Character then return end
   local Hrp = GetHrp(Character); if not Hrp then return end
   local Humanoid = GetHumanoid(Character); if not Humanoid or Humanoid.Health <= 0 then return end
 
+  local TweenTable = Configs.Tween
+
+  speed = speed or TweenTable.Speed
+  easingStyle = easingStyle or TweenTable.easingStyle
+  easingDirection = easingDirection or TweenTable.easingDirection
+  repeatCount = repeatCount or 0
+  reverses = reverses or false
+  delayTime = delayTime or 0
+
   local startPos = Hrp.Position
   local distance = (position - startPos).Magnitude
-  local duration = distance / 350
+  local duration = distance / speed
 
   if duration <= 0 then
     Hrp.Position = position
     Hrp.AssemblyLinearVelocity = Vector3.zero
+    -- Hrp.AssemblyAngularVelocity = Vector3.zero
+    if onComplete then pcall(onComplete) end
     return
   end
 
-  local tween = TweenService:Create(Hrp, TweenService.TweenInfo.new(duration, "Linear", "InOut"), {
-    Position = position
-  }); tween:Play()
+  local tween = TweenService:Create( Hrp, TweenService.TweenInfo.new(duration, easingStyle, easingDirection, repeatCount, reverses, delayTime), { Position = position } )
 
-  while tween.IsPlaying and Character.Parent do
-    if not Humanoid or Humanoid.Health <= 0 then
-      tween:Stop()
-      break
-    end
+  local result = WaitForTween(tween, 45)
 
-    Hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-    -- Hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    task.wait()
+  if onComplete then
+    pcall(onComplete)
   end
 
   Hrp.AssemblyLinearVelocity = Vector3.zero
   -- Hrp.AssemblyAngularVelocity = Vector3.zero
-end
 
+  return result
+end

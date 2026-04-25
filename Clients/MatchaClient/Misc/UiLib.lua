@@ -1,216 +1,166 @@
--- @env: Matcha LuaVM
--- MatchaUI v1.0 — Modular Drawing-based UI Library
--- Designed for Matcha external executor overlay rendering
--- No tweens, no heavy animations. Pure Drawing API.
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-print("MatchaUI 1.2.0 - shystemmm")
+
+--#region So far I changed what I needed ^^
 local MatchaUI = {}
+
+
+
 MatchaUI.__index = MatchaUI
 
--- ─────────────────────────────────────────────────────────────
--- THEME
--- ─────────────────────────────────────────────────────────────
--- Centralized accent color — change this one value to re-theme all lime-green
--- elements across the entire UI without touching any other variable.
+
 local AccentColor = Color3.fromHex("#39FF14")  -- Lime Green
 
 local Theme = {
-    Background      = Color3.fromHex("#0A0A0A"),
-    TopBar          = Color3.fromHex("#111111"),
-    LeftBar         = Color3.fromHex("#141414"),
-    CategoryActive  = AccentColor,
-    CategoryHover   = Color3.fromHex("#1F1F1F"),
-    CategoryText    = Color3.fromHex("#FFFFFF"),
-    ContentBg       = Color3.fromHex("#0A0A0A"),
-    ElementBg       = Color3.fromHex("#141414"),
-    ElementBorder   = Color3.fromHex("#2A2A2A"),
-    AccentOn        = AccentColor,
-    AccentOff       = Color3.fromHex("#2A2A2A"),
-    TextPrimary     = Color3.fromHex("#FFFFFF"),
-    TextSecondary   = Color3.fromHex("#AAAAAA"),
-    TextDisabled    = Color3.fromHex("#555555"),
-    SliderTrack     = Color3.fromHex("#2A2A2A"),
-    SliderFill      = AccentColor,
-    SliderKnob      = Color3.fromHex("#FFFFFF"),
-    DropdownBg      = Color3.fromHex("#111111"),
-    DropdownItem    = Color3.fromHex("#0A0A0A"),
-    DropdownHover   = Color3.fromHex("#1F1F1F"),
-    InputBg         = Color3.fromHex("#0D0D0D"),
-    InputBorder     = AccentColor,
-    TooltipBg       = Color3.fromHex("#050505"),
-    NotifBg         = Color3.fromHex("#111111"),
-    NotifBorder     = AccentColor,
+  Background = Color3.fromHex("#0A0A0A"),
+  TopBar = Color3.fromHex("#111111"),
+  LeftBar = Color3.fromHex("#141414"),
+  CategoryActive = AccentColor,
+  CategoryHover = Color3.fromHex("#1F1F1F"),
+  CategoryText = Color3.fromHex("#FFFFFF"),
+  ContentBg = Color3.fromHex("#0A0A0A"),
+  ElementBg = Color3.fromHex("#141414"),
+  ElementBorder = Color3.fromHex("#2A2A2A"),
+  AccentOn = AccentColor,
+  AccentOff = Color3.fromHex("#2A2A2A"),
+  TextPrimary = Color3.fromHex("#FFFFFF"),
+  TextSecondary = Color3.fromHex("#AAAAAA"),
+  TextDisabled = Color3.fromHex("#555555"),
+  SliderTrack = Color3.fromHex("#2A2A2A"),
+  SliderFill = AccentColor,
+  SliderKnob = Color3.fromHex("#FFFFFF"),
+  DropdownBg = Color3.fromHex("#111111"),
+  DropdownItem = Color3.fromHex("#0A0A0A"),
+  DropdownHover = Color3.fromHex("#1F1F1F"),
+  InputBg = Color3.fromHex("#0D0D0D"),
+  InputBorder = AccentColor,
+  TooltipBg = Color3.fromHex("#050505"),
+  NotifBg = Color3.fromHex("#111111"),
+  NotifBorder = AccentColor,
 
-    ScrollBar       = Color3.fromHex("#1A1A1A"),
-    ScrollThumb     = AccentColor,
-    TitleText       = Color3.fromHex("#FFFFFF"),
-    CloseBtn        = Color3.fromHex("#CC2200"),
-    MinimizeBtn     = Color3.fromHex("#444444"),
-    SectionHeader   = Color3.fromHex("#1A1A1A"),
-    SectionText     = AccentColor,
+  ScrollBar = Color3.fromHex("#1A1A1A"),
+  ScrollThumb = AccentColor,
+  TitleText = Color3.fromHex("#FFFFFF"),
+  CloseBtn = Color3.fromHex("#CC2200"),
+  MinimizeBtn = Color3.fromHex("#444444"),
+  SectionHeader = Color3.fromHex("#1A1A1A"),
+  SectionText = AccentColor,
 }
 
 local _focusedInput = nil
--- ─────────────────────────────────────────────────────────────
--- INTERNAL HELPERS
--- ─────────────────────────────────────────────────────────────
-local _objects  = {}   -- all Drawing objects for cleanup
-local _windows  = {}   -- registered windows
-local _notifs   = {}   -- active notifications
-local _tooltips = {}   -- active tooltips
 
--- Set to true while any dropdown is open.
--- While Choosing is true, checkboxes, toggles, textboxes, and other interactive
--- elements will not respond to input so the dropdown has exclusive focus.
+
+local _objects  = {}
+local _windows  = {}
+local _notifs   = {}
+local _tooltips = {}
+
+
 MatchaUI.Choosing = false
 
 local function newDraw(type)
-    local obj = Drawing.new(type)
-    table.insert(_objects, obj)
-    return obj
+  local obj = Drawing.new(type)
+  table.insert(_objects, obj)
+  return obj
 end
 
-local function makeRect(x, y, w, h, color, zIndex, filled, thickness)
-    local r = newDraw("Square")
-    r.Position    = Vector2.new(x, y)
-    r.Size        = Vector2.new(w, h)
-    r.Color       = color or Theme.ElementBg
-    r.ZIndex      = zIndex or 10
-    r.Filled      = (filled ~= false)
-    r.Thickness   = thickness or 1
-    r.Transparency = 1
-    r.Visible     = true
-    return r
+local function createRectangle(x, y, w, h, color, zIndex, filled, thickness)
+  local r = newDraw("Square")
+  r.Position     = Vector2.new(x, y)
+  r.Size         = Vector2.new(w, h)
+  r.Color        = color or Theme.ElementBg
+  r.ZIndex       = zIndex or 10
+  r.Filled       = (filled ~= false)
+  r.Thickness    = thickness or 1
+  r.Transparency = 1
+  r.Visible      = true
+  return r
 end
 
--- Active font — changed globally via MatchaUI.SetFont()
 local _currentFont = Drawing.Fonts.Monospace
--- All Text Drawing objects created by makeText, so SetFont can repaint them
 local _textObjects = {}
 
-local function makeText(text, x, y, size, color, zIndex, centered, outline)
-    local t = newDraw("Text")
-    t.Text         = tostring(text)
-    t.Position     = Vector2.new(x, y)
-    t.Size         = size or 14
-    t.Color        = color or Theme.TextPrimary
-    t.ZIndex       = zIndex or 11
-    t.Center       = centered or false
-    t.Outline      = (outline ~= false)
-    t.Font         = _currentFont
-    t.Transparency = 1
-    t.Visible      = true
-    table.insert(_textObjects, t)
-    return t
+local function createText(text, x, y, size, color, zIndex, centered, outline)
+  local t = newDraw("Text")
+  t.Text         = tostring(text)
+  t.Position     = Vector2.new(x, y)
+  t.Size         = size or 14
+  t.Color        = color or Theme.TextPrimary
+  t.ZIndex       = zIndex or 11
+  t.Center       = centered or false
+  t.Outline      = (outline ~= false)
+  t.Font         = _currentFont
+  t.Transparency = 1
+  t.Visible      = true
+  table.insert(_textObjects, t)
+  return t
 end
 
-local function inBounds(mx, my, x, y, w, h)
-    return mx >= x and mx <= x + w and my >= y and my <= y + h
+local function isInBoxBounds(mx, my, x, y, w, h)
+  return mx >= x and mx <= x + w and my >= y and my <= y + h
 end
 
 local function setGroupVisible(group, state)
-    for _, obj in ipairs(group) do
-        if obj and obj.Remove then
-            pcall(function() obj.Visible = state end)
-        end
+  for _, obj in ipairs(group) do
+    if obj and obj.Remove then
+      pcall(function()
+        obj.Visible = state
+      end)
     end
+  end
 end
 
--- ─────────────────────────────────────────────────────────────
--- INPUT STATE
--- ─────────────────────────────────────────────────────────────
-local Mouse        = game:GetService("Players").LocalPlayer:GetMouse()
+
+local Mouse = LocalPlayer:GetMouse()
 local _lastMouse1  = false
 local _mouseJustDown  = false
 local _mouseJustUp    = false
 
--- Key name lookup table
+
 local KeyNames = {
-    [8]="Backspace",[9]="Tab",[13]="Enter",[16]="Shift",[17]="Ctrl",
-    [18]="Alt",[20]="CapsLock",[27]="Esc",[32]="Space",[33]="PageUp",
-    [34]="PageDown",[35]="End",[36]="Home",[37]="Left",[38]="Up",
-    [39]="Right",[40]="Down",[45]="Insert",[46]="Delete",
-    [48]="0",[49]="1",[50]="2",[51]="3",[52]="4",[53]="5",
-    [54]="6",[55]="7",[56]="8",[57]="9",
-    [65]="A",[66]="B",[67]="C",[68]="D",[69]="E",[70]="F",
-    [71]="G",[72]="H",[73]="I",[74]="J",[75]="K",[76]="L",
-    [77]="M",[78]="N",[79]="O",[80]="P",[81]="Q",[82]="R",
-    [83]="S",[84]="T",[85]="U",[86]="V",[87]="W",[88]="X",
-    [89]="Y",[90]="Z",
-    [112]="F1",[113]="F2",[114]="F3",[115]="F4",[116]="F5",
-    [117]="F6",[118]="F7",[119]="F8",[120]="F9",[121]="F10",
-    [122]="F11",[123]="F12",
+  [8] = "Backspace", [9] = "Tab", [13] = "Enter", [16] = "Shift", [17] = "Ctrl", [18] = "Alt", [20] = "CapsLock", [27] = "Esc",
+  [32] = "Space", [33] = "PageUp", [34] = "PageDown", [35] = "End", [36] = "Home", [37] = "Left", [38] = "Up", [39] = "Right", [40] = "Down", [45] = "Insert", [46] = "Delete",
+  [48] = "0", [49] = "1", [50] = "2", [51] = "3", [52] = "4", [53] = "5",
+  [54] = "6", [55] = "7", [56] = "8", [57] = "9",
+  [65] = "A", [66] = "B", [67] = "C", [68] = "D", [69] = "E", [70] = "F",[71] = "G", [72] = "H", [73] = "I", [74] = "J", [75] = "K", [76] = "L", [77] = "M", [78] = "N", [79] = "O", [80] = "P", [81] = "Q", [82] = "R", [83] = "S", [84] = "T", [85] = "U", [86] = "V", [87] = "W", [88] = "X", [89] = "Y", [90] = "Z",
+  [112] = "F1", [113] = "F2", [114] = "F3", [115] = "F4", [116] = "F5", [117] = "F6", [118] = "F7", [119] = "F8", [120] = "F9", [121] = "F10", [122] = "F11", [123] = "F12",
 }
 
--- Mouse VK codes to exclude from keybind detection
+
 local MouseVKCodes = {
-    [1]=true,   -- VK_LBUTTON
-    [2]=true,   -- VK_RBUTTON
-    [4]=true,   -- VK_MBUTTON
-    [5]=true,   -- VK_XBUTTON1
-    [6]=true,   -- VK_XBUTTON2
+  [1] = true, [2] = true, [4] = true, [5] = true, [6] = true,
 }
 
--- Explicit allowlist of VK codes that are valid keybind targets.
--- Only keyboard keys with readable names are accepted; mouse buttons and
--- unmappable codes (3, 7, 0xA–0x0F, etc.) are silently skipped.
 local VALID_KEYBIND_KEYS = {
-    -- Special
-    [8]=true,  [9]=true,  [13]=true, [16]=true, [17]=true,
-    [18]=true, [20]=true, [27]=true, [32]=true,
-    [33]=true, [34]=true, [35]=true, [36]=true,
-    [37]=true, [38]=true, [39]=true, [40]=true,
-    [45]=true, [46]=true,
-    -- Digits 0–9
-    [48]=true,[49]=true,[50]=true,[51]=true,[52]=true,
-    [53]=true,[54]=true,[55]=true,[56]=true,[57]=true,
-    -- Letters A–Z
-    [65]=true,[66]=true,[67]=true,[68]=true,[69]=true,
-    [70]=true,[71]=true,[72]=true,[73]=true,[74]=true,
-    [75]=true,[76]=true,[77]=true,[78]=true,[79]=true,
-    [80]=true,[81]=true,[82]=true,[83]=true,[84]=true,
-    [85]=true,[86]=true,[87]=true,[88]=true,[89]=true,
-    [90]=true,
-    -- F1–F12
-    [112]=true,[113]=true,[114]=true,[115]=true,[116]=true,
-    [117]=true,[118]=true,[119]=true,[120]=true,[121]=true,
-    [122]=true,[123]=true,
+  [8] = true, [9] = true, [13] = true, [16] = true, [17] = true, [18] = true, [20] = true, [27] = true,
+  [32] = true, [33] = true, [34] = true, [35] = true, [36] = true, [37] = true, [38] = true, [39] = true, [40] = true, [45] = true, [46] = true,
+  [48] = true, [49] = true, [50] = true, [51] = true, [52] = true, [53] = true, [54] = true, [55] = true, [56] = true, [57] = true,
+  [65] = true, [66] = true, [67] = true, [68] = true, [69] = true, [70] = true, [71] = true, [72] = true, [73] = true, [74] = true, [75] = true, [76] = true, [77] = true, [78] = true, [79] = true, [80] = true, [81] = true, [82] = true, [83] = true, [84] = true, [85] = true, [86] = true, [87] = true, [88] = true, [89] = true, [90] = true,
+  [112] = true, [113] = true, [114] = true, [115] = true, [116] = true, [117] = true, [118] = true, [119] = true, [120] = true, [121] = true, [122] = true, [123] = true,
 }
 
--- ─────────────────────────────────────────────────────────────
--- ACCENT COLOR REGISTRY
--- ─────────────────────────────────────────────────────────────
--- Must be declared before CreateWindow so element builder closures
--- can call trackAccent(). SetAccentColor() iterates this table to
--- repaint every accent-colored Drawing object live.
+
+-- ACCENT COLOR REGISTRY; -- Must be declared before CreateWindow so element builder closures can call trackAccent(). SetAccentColor() iterates this table to repaint every accent-colored Drawing object live.
 local _accentObjects = {}  -- array of Drawing objects whose .Color = AccentColor
 
 local function trackAccent(obj)
-    table.insert(_accentObjects, obj)
+	table.insert(_accentObjects, obj)
 end
 
--- ─────────────────────────────────────────────────────────────
--- THEME COLOR REGISTRY
--- ─────────────────────────────────────────────────────────────
--- Maps each Theme key to a list of Drawing objects that use it.
--- SetThemeColor() looks up the key directly — no fragile color comparison.
+
+-- Theme color registery: Maps each Theme key to a list of Drawing objects that use it.
 local _themeObjects = {}  -- { [themeKey] = { obj, ... } }
 
 local function trackTheme(key, obj)
-    if not _themeObjects[key] then
-        _themeObjects[key] = {}
-    end
-    table.insert(_themeObjects[key], obj)
+  if not _themeObjects[key] then
+    _themeObjects[key] = {}
+  end
+  table.insert(_themeObjects[key], obj)
 end
 
--- ─────────────────────────────────────────────────────────────
--- WINDOW CONSTRUCTOR
--- ─────────────────────────────────────────────────────────────
--- Returns a Window object. All elements are added to a window.
--- Layout:
---   TopBar  (title, minimize, close)
---   LeftBar (categories)
---   Content (element panels per category)
+-- Window constructor: Returns a Window object. All elements are added to a window.
+-- Layout: TopBar  (title, minimize, close); LeftBar (categories); Content (element panels per category)
 
 local TOPBAR_H    = 28
 local LEFTBAR_W   = 120
@@ -220,1193 +170,1103 @@ local ELEM_H      = 32
 local ELEM_PAD    = 6
 
 function MatchaUI.CreateWindow(opts)
-    opts = opts or {}
-    local wx      = opts.X       or 100
-    local wy      = opts.Y       or 80
-    local ww      = opts.Width   or 500
-    local wh      = opts.Height  or 380
-    local title   = opts.Title   or "MatchaUI"
-    local baseZ   = opts.ZIndex  or 100
+  opts = opts or {}
+  local wx      = opts.X       or 100
+  local wy      = opts.Y       or 80
+  local ww      = opts.Width   or 500
+  local wh      = opts.Height  or 380
+  local title   = opts.Title   or "MatchaUI"
+  local baseZ   = opts.ZIndex  or 100
 
-    local win = {
-        X = wx, Y = wy, W = ww, H = wh,
-        BaseZ      = baseZ,
-        Visible    = true,
-        Minimized  = false,
-        Dragging   = false,
-        DragOffX   = 0, DragOffY = 0,
-        Categories = {},
-        ActiveCat  = nil,
-        _draws     = {},
-        _elements  = {},
-    }
+  local win = {
+    X = wx, Y = wy, W = ww, H = wh,
+    BaseZ      = baseZ,
+    Visible    = true,
+    Minimized  = false,
+    Dragging   = false,
+    DragOffX   = 0, DragOffY = 0,
+    Categories = {},
+    ActiveCat  = nil,
+    _draws     = {},
+    _elements  = {},
+  }
 
-    local function draw(d) table.insert(win._draws, d) return d end
+  local function draw(d) table.insert(win._draws, d); return d end
 
-    -- ── Shadow / border
-    local shadow = draw(makeRect(wx-2, wy-2, ww+4, wh+4, Color3.fromHex("#000000"), baseZ, true))
-    shadow.Transparency = 0.6
+  -- ── Shadow / border
+  local shadow = draw(createRectangle(wx-2, wy-2, ww+4, wh+4, Color3.fromHex("#000000"), baseZ, true))
+  shadow.Transparency = 0.6
 
-    -- ── Main background
-    local bg = draw(makeRect(wx, wy, ww, wh, Theme.Background, baseZ+1, true))
-    trackTheme("Background", bg)
+  -- ── Main background
+  local bg = draw(createRectangle(wx, wy, ww, wh, Theme.Background, baseZ+1, true))
+  trackTheme("Background", bg)
 
-    -- ── TopBar
-    local topBar = draw(makeRect(wx, wy, ww, TOPBAR_H, Theme.TopBar, baseZ+2, true))
-    trackTheme("TopBar", topBar)
+  -- ── TopBar
+  local topBar = draw(createRectangle(wx, wy, ww, TOPBAR_H, Theme.TopBar, baseZ+2, true))
+  trackTheme("TopBar", topBar)
 
-    -- Title text
-    local titleTxt = draw(makeText(title, wx + 10, wy + 7, 14, Theme.TitleText, baseZ+3, false, true))
-    trackTheme("TitleText", titleTxt)
+  -- Title text
+  local titleTxt = draw(createText(title, wx + 10, wy + 7, 14, Theme.TitleText, baseZ+3, false, true))
+  trackTheme("TitleText", titleTxt)
 
-    -- Minimize button
-    local minBtn  = draw(makeRect(wx + ww - 52, wy + 6, 18, 16, Theme.MinimizeBtn, baseZ+3, true))
-    trackTheme("MinimizeBtn", minBtn)
-    local minTxt  = draw(makeText("-", wx + ww - 52 + 6, wy + 7, 13, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
+  -- Minimize button
+  local minBtn  = draw(createRectangle(wx + ww - 52, wy + 6, 18, 16, Theme.MinimizeBtn, baseZ+3, true))
+  trackTheme("MinimizeBtn", minBtn)
+  local minTxt  = draw(createText("-", wx + ww - 52 + 6, wy + 7, 13, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
 
-    -- Close button
-    local closeBtn  = draw(makeRect(wx + ww - 26, wy + 6, 18, 16, Theme.CloseBtn, baseZ+3, true))
-    trackTheme("CloseBtn", closeBtn)
-    local closeTxt  = draw(makeText("X", wx + ww - 26 + 5, wy + 7, 12, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
+  -- Close button
+  local closeBtn  = draw(createRectangle(wx + ww - 26, wy + 6, 18, 16, Theme.CloseBtn, baseZ+3, true))
+  trackTheme("CloseBtn", closeBtn)
+  local closeTxt  = draw(createText("X", wx + ww - 26 + 5, wy + 7, 12, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
 
-    -- ── LeftBar
-    local leftBar = draw(makeRect(wx, wy + TOPBAR_H, LEFTBAR_W, wh - TOPBAR_H, Theme.LeftBar, baseZ+2, true))
-    trackTheme("LeftBar", leftBar)
+  -- ── LeftBar
+  local leftBar = draw(createRectangle(wx, wy + TOPBAR_H, LEFTBAR_W, wh - TOPBAR_H, Theme.LeftBar, baseZ+2, true))
+  trackTheme("LeftBar", leftBar)
 
-    -- ── Content area background
-    local contentBg = draw(makeRect(wx + LEFTBAR_W, wy + TOPBAR_H, ww - LEFTBAR_W, wh - TOPBAR_H, Theme.ContentBg, baseZ+2, true))
-    trackTheme("ContentBg", contentBg)
+  -- ── Content area background
+  local contentBg = draw(createRectangle(wx + LEFTBAR_W, wy + TOPBAR_H, ww - LEFTBAR_W, wh - TOPBAR_H, Theme.ContentBg, baseZ+2, true))
+  trackTheme("ContentBg", contentBg)
 
-    -- ─────────────────────────────
-    -- Reposition helper (drag)
-    -- ─────────────────────────────
-    local function reposition(nx, ny)
-        local dx, dy = nx - win.X, ny - win.Y
-        win.X, win.Y = nx, ny
 
-        shadow.Position    = Vector2.new(nx-2, ny-2)
-        bg.Position        = Vector2.new(nx, ny)
-        topBar.Position    = Vector2.new(nx, ny)
-        titleTxt.Position  = Vector2.new(nx+10, ny+7)
-        minBtn.Position    = Vector2.new(nx+ww-52, ny+6)
-        minTxt.Position    = Vector2.new(nx+ww-52+6, ny+7)
-        closeBtn.Position  = Vector2.new(nx+ww-26, ny+6)
-        closeTxt.Position  = Vector2.new(nx+ww-26+5, ny+7)
-        leftBar.Position   = Vector2.new(nx, ny+TOPBAR_H)
-        contentBg.Position = Vector2.new(nx+LEFTBAR_W, ny+TOPBAR_H)
+  local function reposition(nx, ny)
+    local dx, dy = nx - win.X, ny - win.Y
+    win.X, win.Y = nx, ny
 
-        -- Shift category labels and content
-        for _, cat in ipairs(win.Categories) do
-            cat._label.Position = cat._label.Position + Vector2.new(dx, dy)
-            cat._bg.Position    = cat._bg.Position    + Vector2.new(dx, dy)
-            for _, elem in ipairs(cat._elemObjs) do
-                for _, obj in ipairs(elem) do
-                    pcall(function() obj.Position = obj.Position + Vector2.new(dx, dy) end)
-                end
-            end
+    shadow.Position    = Vector2.new(nx-2, ny-2)
+    bg.Position        = Vector2.new(nx, ny)
+    topBar.Position    = Vector2.new(nx, ny)
+    titleTxt.Position  = Vector2.new(nx+10, ny+7)
+    minBtn.Position    = Vector2.new(nx+ww-52, ny+6)
+    minTxt.Position    = Vector2.new(nx+ww-52+6, ny+7)
+    closeBtn.Position  = Vector2.new(nx+ww-26, ny+6)
+    closeTxt.Position  = Vector2.new(nx+ww-26+5, ny+7)
+    leftBar.Position   = Vector2.new(nx, ny+TOPBAR_H)
+    contentBg.Position = Vector2.new(nx+LEFTBAR_W, ny+TOPBAR_H)
+
+    -- Shift category labels and content
+    for _, cat in ipairs(win.Categories) do
+      cat._label.Position = cat._label.Position + Vector2.new(dx, dy)
+      cat._bg.Position    = cat._bg.Position    + Vector2.new(dx, dy)
+      for _, elem in ipairs(cat._elemObjs) do
+        for _, obj in ipairs(elem) do
+          pcall(function() obj.Position = obj.Position + Vector2.new(dx, dy) end)
         end
-        -- Update element descriptor position fields used for hit-testing
-        for _, elem in ipairs(win._elements) do
-            if elem._x then elem._x = elem._x + dx end
-            if elem._y then elem._y = elem._y + dy end
-            -- Toggle track
-            if elem._tx then elem._tx = elem._tx + dx end
-            if elem._ty then elem._ty = elem._ty + dy end
-            -- Slider track
-            if elem._trackX then elem._trackX = elem._trackX + dx end
-            if elem._trackY then elem._trackY = elem._trackY + dy end
-            -- ValueLabel stable anchor
-            if elem._valRightEdge then elem._valRightEdge = elem._valRightEdge + dx end
-            -- Dropdown items
-            if elem._itemObjs then
-                for _, item in ipairs(elem._itemObjs) do
-                    if item._x then item._x = item._x + dx end
-                    if item._y then item._y = item._y + dy end
-                end
-            end
-            -- ColorPicker panel objects (shift header + all panel draw objects)
-            if elem._swatches then
-                for _, sw in ipairs(elem._swatches) do
-                    if sw._x then sw._x = sw._x + dx end
-                    if sw._y then sw._y = sw._y + dy end
-                end
-            end
-            -- ColorPicker: update all hit-test coordinates for header and panel
-            if elem.Type == "ColorPicker" then
-                if elem._headerX then elem._headerX = elem._headerX + dx end
-                if elem._headerY then elem._headerY = elem._headerY + dy end
-                if elem._arrowX  then elem._arrowX  = elem._arrowX  + dx end
-                if elem._arrowY  then elem._arrowY  = elem._arrowY  + dy end
-                -- Panel floats to the right of the window; shift with the window
-                if elem._panelX  then elem._panelX  = elem._panelX  + dx end
-                if elem._panelY  then elem._panelY  = elem._panelY  + dy end
-                -- Palette swatches hit-test coords
-                for _, sw in ipairs(elem._paletteSwatch or {}) do
-                    sw._x = sw._x + dx
-                    sw._y = sw._y + dy
-                end
-                -- Stepper/slider buttons hit-test coords
-                for _, btn in ipairs(elem._btnObjs or {}) do
-                    btn._x = btn._x + dx
-                    btn._y = btn._y + dy
-                    if btn._trackX then btn._trackX = btn._trackX + dx end
-                    if btn._knobY  then btn._knobY  = btn._knobY  + dy end
-                end
-                -- Also shift channelSliders internal track coords
-                local cs2 = elem._channelSliders or {}
-                for _, s2 in pairs(cs2) do
-                    if s2._trackX then s2._trackX = s2._trackX + dx end
-                    if s2._knobY  then s2._knobY  = s2._knobY  + dy end
-                end
-            end
-            -- ScrollFrame scrollbar X anchor
-            if elem._sbX then elem._sbX = elem._sbX + dx end
-        end
+      end
     end
+    -- Update element descriptor position fields used for hit-testing
+    for _, elem in ipairs(win._elements) do
+      if elem._x then elem._x = elem._x + dx end
+      if elem._y then elem._y = elem._y + dy end
+      -- Toggle track
+      if elem._tx then elem._tx = elem._tx + dx end
+      if elem._ty then elem._ty = elem._ty + dy end
+      -- Slider track
+      if elem._trackX then elem._trackX = elem._trackX + dx end
+      if elem._trackY then elem._trackY = elem._trackY + dy end
+      -- ValueLabel stable anchor
+      if elem._valRightEdge then elem._valRightEdge = elem._valRightEdge + dx end
+      -- Dropdown items
+      if elem._itemObjs then
+        for _, item in ipairs(elem._itemObjs) do
+          if item._x then item._x = item._x + dx end
+          if item._y then item._y = item._y + dy end
+        end
+      end
+      -- ColorPicker panel objects (shift header + all panel draw objects)
+      if elem._swatches then
+        for _, sw in ipairs(elem._swatches) do
+          if sw._x then sw._x = sw._x + dx end
+          if sw._y then sw._y = sw._y + dy end
+        end
+      end
+      -- ColorPicker: update all hit-test coordinates for header and panel
+      if elem.Type == "ColorPicker" then
+        if elem._headerX then elem._headerX = elem._headerX + dx end
+        if elem._headerY then elem._headerY = elem._headerY + dy end
+        if elem._arrowX  then elem._arrowX  = elem._arrowX  + dx end
+        if elem._arrowY  then elem._arrowY  = elem._arrowY  + dy end
+        -- Panel floats to the right of the window; shift with the window
+        if elem._panelX  then elem._panelX  = elem._panelX  + dx end
+        if elem._panelY  then elem._panelY  = elem._panelY  + dy end
+        -- Palette swatches hit-test coords
+        for _, sw in ipairs(elem._paletteSwatch or {}) do
+          sw._x = sw._x + dx
+          sw._y = sw._y + dy
+        end
+        -- Stepper/slider buttons hit-test coords
+        for _, btn in ipairs(elem._btnObjs or {}) do
+          btn._x = btn._x + dx
+          btn._y = btn._y + dy
+          if btn._trackX then btn._trackX = btn._trackX + dx end
+          if btn._knobY  then btn._knobY  = btn._knobY  + dy end
+        end
+        -- Also shift channelSliders internal track coords
+        local cs2 = elem._channelSliders or {}
+        for _, s2 in pairs(cs2) do
+          if s2._trackX then s2._trackX = s2._trackX + dx end
+          if s2._knobY  then s2._knobY  = s2._knobY  + dy end
+        end
+      end
+      -- ScrollFrame scrollbar X anchor
+      if elem._sbX then elem._sbX = elem._sbX + dx end
+    end
+  end
 
-    -- ─────────────────────────────
-    -- Visibility helpers
-    -- ─────────────────────────────
-    local function setWinVisible(state)
-        win.Visible = state
-        for _, d in ipairs(win._draws) do
-            pcall(function() d.Visible = state end)
+  local function setWinVisible(state)
+    win.Visible = state
+    for _, d in ipairs(win._draws) do
+      pcall(function() d.Visible = state end)
+    end
+    -- When becoming visible, show ONLY the active category's elements.
+    -- All other categories must stay hidden.
+    for _, cat in ipairs(win.Categories) do
+      local showCat = state and (win.ActiveCat == cat)
+      for _, elem in ipairs(cat._elemObjs) do
+        for _, obj in ipairs(elem) do
+          pcall(function() obj.Visible = showCat end)
         end
-        -- When becoming visible, show ONLY the active category's elements.
-        -- All other categories must stay hidden.
-        for _, cat in ipairs(win.Categories) do
-            local showCat = state and (win.ActiveCat == cat)
-            for _, elem in ipairs(cat._elemObjs) do
-                for _, obj in ipairs(elem) do
-                    pcall(function() obj.Visible = showCat end)
-                end
+      end
+      -- On show, restore correct per-element sub-object states for active cat
+      if showCat then
+        for _, elem in ipairs(win._elements) do
+          if elem._cat ~= cat then continue end
+          if elem.Type == "Checkbox" and elem._check then
+            elem._check.Visible = elem.State
+          end
+          if elem.Type == "TextInput" and elem._cursor then
+            elem._cursor.Visible = false
+          end
+          if elem.Type == "Dropdown" then
+            elem._isOpen = false
+            elem._arrow.Text = "v"
+            for _, item in ipairs(elem._itemObjs) do
+              item._bg.Visible  = false
+              item._txt.Visible = false
             end
-            -- On show, restore correct per-element sub-object states for active cat
-            if showCat then
-                for _, elem in ipairs(win._elements) do
-                    if elem._cat ~= cat then continue end
-                    if elem.Type == "Checkbox" and elem._check then
-                        elem._check.Visible = elem.State
-                    end
-                    if elem.Type == "TextInput" and elem._cursor then
-                        elem._cursor.Visible = false
-                    end
-                    if elem.Type == "Dropdown" then
-                        elem._isOpen = false
-                        elem._arrow.Text = "v"
-                        for _, item in ipairs(elem._itemObjs) do
-                            item._bg.Visible  = false
-                            item._txt.Visible = false
-                        end
-                    end
-                    if elem.Type == "ColorPicker" then
-                        elem._cpOpen = false
-                        elem._arrowTxt.Text = "v"
-                        elem._panelBg.Visible = false
-                        for _, r in ipairs(elem._hueRects) do r.Visible = false end
-                        elem._hueCursor.Visible = false
-                        for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
-                        elem._svCursor.Visible = false
-                        elem._panelBorder.Visible = false
-                        local cs = elem._channelSliders or {}
-                        for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
-                            s._lbl.Visible=false s._val.Visible=false
-                            s._bg.Visible=false s._fill.Visible=false
-                            if s._knob then s._knob.Visible=false end
-                        end end
-                        elem._hexLabel.Visible = false
-                        if elem._prevPatch then elem._prevPatch.Visible = false end
-                        for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
-                    end
-                end
+          end
+          if elem.Type == "ColorPicker" then
+            elem._cpOpen = false
+            elem._arrowTxt.Text = "v"
+            elem._panelBg.Visible = false
+            for _, r in ipairs(elem._hueRects) do r.Visible = false end
+            elem._hueCursor.Visible = false
+            for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
+            elem._svCursor.Visible = false
+            elem._panelBorder.Visible = false
+            local cs = elem._channelSliders or {}
+            for _, ch in ipairs({"R","G","B"}) do 
+              local s=cs[ch] 
+              if s then
+                s._lbl.Visible = false; s._val.Visible = false
+                s._bg.Visible = false; s._fill.Visible=false
+                if s._knob then 
+                  s._knob.Visible = false 
+              end
+            end 
+          end
+
+            elem._hexLabel.Visible = false
+            if elem._prevPatch then elem._prevPatch.Visible = false end
+            for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) 
             end
+          end
         end
-        -- Clear focused input on hide
-        if not state and _focusedInput then
+      end
+    end
+    -- Clear focused input on hide
+    if not state and _focusedInput then
+      _focusedInput.Focused = false
+      if _focusedInput._cursor then _focusedInput._cursor.Visible = false end
+      setrobloxinput(true)  -- restore Roblox input when UI hides
+      _focusedInput = nil
+    end
+    -- Close any open dropdowns and reset Choosing on hide
+    if not state then
+      MatchaUI.Choosing = false
+      for _, w in ipairs(_windows) do
+        for _, elem in ipairs(w._elements) do
+          if elem.Type == "Dropdown" and elem._isOpen then
+            elem._isOpen = false
+            elem._arrow.Text = "v"
+            for _, item in ipairs(elem._itemObjs) do
+              item._bg.Visible  = false
+              item._txt.Visible = false
+            end
+          end
+        end
+      end
+    end
+  end
+
+  local function minimize()
+    win.Minimized = not win.Minimized
+    local showContent = not win.Minimized
+    bg.Size         = showContent and Vector2.new(ww, wh) or Vector2.new(ww, TOPBAR_H)
+    shadow.Size     = showContent and Vector2.new(ww+4, wh+4) or Vector2.new(ww+4, TOPBAR_H+4)
+    leftBar.Visible     = showContent
+    contentBg.Visible   = showContent
+    for _, cat in ipairs(win.Categories) do
+      cat._label.Visible = showContent
+      cat._bg.Visible    = showContent
+      if win.ActiveCat == cat then
+        for _, elem in ipairs(cat._elemObjs) do
+          for _, obj in ipairs(elem) do
+            pcall(function() obj.Visible = showContent end)
+          end
+        end
+        -- On un-minimize, restore correct per-element sub-object states
+        if showContent then
+          for _, elem in ipairs(win._elements) do
+            if elem._cat ~= cat then continue end
+            if elem.Type == "Checkbox" and elem._check then
+              elem._check.Visible = elem.State
+            end
+            if (elem.Type == "TextInput") and elem._cursor then
+              elem._cursor.Visible = false
+            end
+            if elem.Type == "Dropdown" then
+              elem._isOpen = false
+              elem._arrow.Text = "v"
+              for _, item in ipairs(elem._itemObjs) do
+                item._bg.Visible  = false
+                item._txt.Visible = false
+              end
+            end
+            if elem.Type == "ColorPicker" then
+              elem._cpOpen = false
+              elem._arrowTxt.Text = ">"
+              elem._panelBg.Visible = false
+              elem._panelBorder.Visible = false
+              for _, r in ipairs(elem._hueRects) do r.Visible = false end
+              elem._hueCursor.Visible = false
+              for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
+              elem._svCursor.Visible = false
+              local cs = elem._channelSliders or {}
+              for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
+                s._lbl.Visible=false; s._val.Visible=false
+                s._bg.Visible=false; s._fill.Visible=false
+                if s._knob then s._knob.Visible=false end
+              end end
+              elem._hexLabel.Visible = false
+              if elem._prevPatch then elem._prevPatch.Visible = false end
+              for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
+            end
+          end
+        else
+          -- On minimize, clear focused input if it belongs to this window
+          if _focusedInput and _focusedInput._cat == cat then
             _focusedInput.Focused = false
             if _focusedInput._cursor then _focusedInput._cursor.Visible = false end
-            setrobloxinput(true)  -- restore Roblox input when UI hides
+            setrobloxinput(true)
             _focusedInput = nil
+          end
         end
-        -- Close any open dropdowns and reset Choosing on hide
-        if not state then
-            MatchaUI.Choosing = false
-            for _, w in ipairs(_windows) do
-                for _, elem in ipairs(w._elements) do
-                    if elem.Type == "Dropdown" and elem._isOpen then
-                        elem._isOpen = false
-                        elem._arrow.Text = "v"
-                        for _, item in ipairs(elem._itemObjs) do
-                            item._bg.Visible  = false
-                            item._txt.Visible = false
-                        end
-                    end
-                end
+      end
+    end
+    minTxt.Text = win.Minimized and "+" or "-"
+  end
+
+  local function addCategory(name)
+    local idx  = #win.Categories
+    local cy   = win.Y + TOPBAR_H + idx * CAT_H + 4
+    local cx   = win.X + 4
+
+    local catBg = draw(createRectangle(cx, cy, LEFTBAR_W - 8, CAT_H - 2, Theme.LeftBar, baseZ+3, true))
+    trackTheme("LeftBar", catBg)
+    local catLbl = draw(createText(name, cx + 8, cy + 7, 13, Theme.CategoryText, baseZ+4, false, true))
+    trackTheme("CategoryText", catLbl)
+
+    local cat = {
+      Name      = name,
+      _bg       = catBg,
+      _label    = catLbl,
+      _elemObjs = {},      -- list of draw-object arrays per element
+      _elems    = {},      -- element descriptors
+      _scrollY  = 0,
+    }
+    table.insert(win.Categories, cat)
+
+    if not win.ActiveCat then
+      win.ActiveCat = cat
+      catBg.Color   = Theme.CategoryActive
+    end
+
+    return cat
+  end
+
+ 
+  local function contentCursorY(cat) --  -- Content cursor tracker (returns current Y for next element)
+    local baseY = win.Y + TOPBAR_H + CONTENT_PAD + cat._scrollY
+    for _, eObjs in ipairs(cat._elemObjs) do
+      -- each element stores its height in eObjs._h
+      baseY = baseY + (eObjs._h or ELEM_H) + ELEM_PAD
+    end
+    return baseY
+  end
+
+  local function contentX()
+    return win.X + LEFTBAR_W + CONTENT_PAD
+  end
+
+  local function contentW()
+    return ww - LEFTBAR_W - CONTENT_PAD * 2
+  end
+
+
+  local function activateCategory(cat) -- Activate a category (show its content, hide others)
+    if win.ActiveCat == cat then return end
+    -- hide old
+    if win.ActiveCat then
+      win.ActiveCat._bg.Color = Theme.LeftBar
+      for _, elem in ipairs(win.ActiveCat._elemObjs) do
+        for _, obj in ipairs(elem) do
+          pcall(function() obj.Visible = false end)
+        end
+      end
+      -- Ensure the focused input loses focus when switching categories
+      if _focusedInput and _focusedInput._cat == win.ActiveCat then
+        _focusedInput.Focused = false
+        if _focusedInput._cursor then _focusedInput._cursor.Visible = false end
+        setrobloxinput(true)
+        _focusedInput = nil
+      end
+    end
+    win.ActiveCat = cat
+    cat._bg.Color = Theme.CategoryActive
+    -- Show the new category's base draw objects
+    for _, elem in ipairs(cat._elemObjs) do
+      for _, obj in ipairs(elem) do
+        pcall(function() obj.Visible = true end)
+      end
+    end
+    -- Correct per-element sub-object states AFTER making the base set visible
+    for _, elem in ipairs(win._elements) do
+      if elem._cat ~= cat then continue end
+      -- Checkbox: marker only visible if checked
+      if elem.Type == "Checkbox" and elem._check then
+        elem._check.Visible = elem.State
+      end
+      -- TextInput: cursor always starts hidden until re-focused
+      if (elem.Type == "TextInput") and elem._cursor then
+        elem._cursor.Visible = false
+      end
+      -- Dropdown: item list always starts closed
+      if elem.Type == "Dropdown" then
+        elem._isOpen = false
+        elem._arrow.Text = "v"
+        for _, item in ipairs(elem._itemObjs) do
+          item._bg.Visible  = false
+          item._txt.Visible = false
+        end
+      end
+      -- ColorPicker: panel always starts closed
+      if elem.Type == "ColorPicker" then
+        elem._cpOpen = false
+        elem._arrowTxt.Text = ">"
+        elem._panelBg.Visible = false
+        elem._panelBorder.Visible = false
+        for _, r in ipairs(elem._hueRects) do r.Visible = false end
+        elem._hueCursor.Visible = false
+        for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
+        elem._svCursor.Visible = false
+        local cs = elem._channelSliders or {}
+        for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
+          s._lbl.Visible=false; s._val.Visible=false
+          s._bg.Visible=false; s._fill.Visible=false
+          if s._knob then s._knob.Visible=false end
+        end end
+        elem._hexLabel.Visible = false
+        if elem._prevPatch then elem._prevPatch.Visible = false end
+        for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
+      end
+    end
+  end
+
+  local function registerElem(cat, objs, h) -- -- Helper: register element draw-objects with a category
+    objs._h = h or ELEM_H
+    table.insert(cat._elemObjs, objs)
+    -- hide if not active
+    if win.ActiveCat ~= cat then
+      for _, obj in ipairs(objs) do
+        pcall(function() obj.Visible = false end)
+      end
+    end
+  end
+
+  local function registerElemDesc(cat, elem) -- Helper: register an element descriptor and tag it with its category
+    elem._cat = cat
+    table.insert(win._elements, elem)
+    return elem
+  end
+
+  local function addSection(cat, labelText) -- SECTION HEADER (grouping label)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local objs = {}
+    local bg   = draw(createRectangle(cx, cy, cw, 20, Theme.SectionHeader, baseZ+5, true))
+    trackTheme("SectionHeader", bg)
+    local lbl  = draw(createText(labelText, cx + 6, cy + 4, 12, Theme.SectionText, baseZ+6, false, true))
+    trackAccent(lbl)
+    table.insert(objs, bg); table.insert(objs, lbl)
+    registerElem(cat, objs, 20)
+    return objs
+  end
+
+  local function addButton(cat, labelText, callback) -- ── BUTTON
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local objs  = {}
+    local btnBg = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", btnBg)
+    local btnLbl = draw(createText(labelText, cx + cw/2, cy + ELEM_H/2 - 6, 14, Theme.TextPrimary, baseZ+6, true, false))
+    trackTheme("TextPrimary", btnLbl)
+    table.insert(objs, btnBg); table.insert(objs, btnLbl)
+    registerElem(cat, objs, ELEM_H)
+    local elem = {
+      Type = "Button", _bg = btnBg, _draws = objs,
+      _x=cx, _y=cy, _w=cw, _h=ELEM_H,
+      Callback = callback,
+    }
+    registerElemDesc(cat, elem)
+    return elem
+  end
+
+  -- ── TOGGLE
+  local function addToggle(cat, labelText, default, callback)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local state = default or false
+    local objs = {}
+    local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
+    trackTheme("TextPrimary", lbl)
+    local trackW, trackH = 36, 16
+    local tx = cx + cw - trackW - 8
+    local ty = cy + ELEM_H/2 - trackH/2
+    local track   = draw(createRectangle(tx, ty, trackW, trackH, state and Theme.AccentOn or Theme.AccentOff, baseZ+6, true))
+    if not state then trackTheme("AccentOff", track) end
+    -- knob
+    local knobSz  = 12
+    local knob    = draw(createRectangle(
+      state and (tx + trackW - knobSz - 2) or (tx + 2),
+      ty + 2, knobSz, knobSz, Theme.SliderKnob, baseZ+7, true
+    ))
+    table.insert(objs, bg); table.insert(objs, lbl)
+    table.insert(objs, track); table.insert(objs, knob)
+    registerElem(cat, objs, ELEM_H)
+    local elem = {
+      Type="Toggle", _bg=bg, _draws=objs,
+      _x=cx, _y=cy, _w=cw, _h=ELEM_H,
+      _tx=tx, _ty=ty, _trackW=trackW, _trackH=trackH,
+      _knob=knob, _track=track, _knobSz=knobSz,
+      State=state, Callback=callback,
+    }
+    registerElemDesc(cat, elem)
+    return elem
+  end
+
+  -- ── SLIDER
+  local function addSlider(cat, labelText, min, max, default, callback)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local h   = ELEM_H + 10
+    local val = default or min
+    local objs = {}
+    local bg  = draw(createRectangle(cx, cy, cw, h, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl = draw(createText(labelText, cx + 8, cy + 6, 12, Theme.TextPrimary, baseZ+6, false, true))
+    trackTheme("TextPrimary", lbl)
+    local valLbl = draw(createText(tostring(math.floor(val)), cx + cw - 30, cy + 6, 12, Theme.AccentOn, baseZ+6, false, true))
+    trackAccent(valLbl)
+    -- track
+    local trackPad = 8
+    local trackW = cw - trackPad*2
+    local trackY  = cy + h - 12
+    local trackBg = draw(createRectangle(cx + trackPad, trackY, trackW, 4, Theme.SliderTrack, baseZ+6, true))
+    trackTheme("SliderTrack", trackBg)
+    -- fill
+    local fillPct = (val - min) / math.max(max - min, 0.001)
+    local fillW   = math.floor(trackW * fillPct)
+    local fillRect = draw(createRectangle(cx + trackPad, trackY, math.max(fillW,1), 4, Theme.SliderFill, baseZ+7, true))
+    trackAccent(fillRect)
+    -- knob
+    local knobW, knobH = 10, 14
+    local knobX = cx + trackPad + fillW - knobW/2
+    local knobY = trackY - 5
+    local knob  = draw(createRectangle(knobX, knobY, knobW, knobH, Theme.SliderKnob, baseZ+8, true))
+    trackTheme("SliderKnob", knob)
+    table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, valLbl)
+    table.insert(objs, trackBg); table.insert(objs, fillRect); table.insert(objs, knob)
+    registerElem(cat, objs, h)
+    local elem = {
+      Type="Slider", _bg=bg, _draws=objs,
+      _x=cx, _y=cy, _w=cw, _h=h,
+      _trackX = cx + trackPad, _trackY = trackY,
+      _trackW = trackW,
+      _fillRect = fillRect, _knob = knob, _valLbl = valLbl,
+      _knobW = knobW, _knobH = knobH,
+      Min=min, Max=max, Value=val,
+      Dragging=false, Callback=callback,
+    }
+    registerElemDesc(cat, elem)
+    return elem
+  end
+
+  -- ── DROPDOWN
+  local function addDropdown(cat, labelText, options, default, callback)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local selected = default or (options and options[1]) or ""
+    local isOpen   = false
+    local objs     = {}
+    local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+    trackTheme("TextSecondary", lbl)
+    local boxBg  = draw(createRectangle(cx + cw - 130, cy + 4, 122, 22, Theme.InputBg, baseZ+6, true))
+    trackTheme("InputBg", boxBg)
+    local selTxt = draw(createText(selected, cx + cw - 126, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
+    trackTheme("TextPrimary", selTxt)
+    local arrow  = draw(createText("v", cx + cw - 14, cy + 9, 11, Theme.AccentOn, baseZ+7, false, false))
+    trackAccent(arrow)
+    table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, boxBg)
+    table.insert(objs, selTxt); table.insert(objs, arrow)
+
+    -- Dropdown items (hidden by default, high Z)
+    local itemObjs = {}
+    local dropBaseZ = baseZ + 50
+    for i, opt in ipairs(options or {}) do
+      local iBg  = draw(createRectangle(0, 0, 122, 22, Theme.DropdownItem, dropBaseZ, true))
+      trackTheme("DropdownItem", iBg)
+      local iTxt = draw(createText(opt, 0, 0, 12, Theme.TextPrimary, dropBaseZ+1, false, true))
+      trackTheme("TextPrimary", iTxt)
+      iBg.Visible  = false
+      iTxt.Visible = false
+      table.insert(itemObjs, {_bg=iBg, _txt=iTxt, _value=opt, _x=0, _y=0, _idx=i})
+      table.insert(objs, iBg); table.insert(objs, iTxt)
+    end
+    registerElem(cat, objs, ELEM_H)
+    local elem = {
+      Type="Dropdown", _bg=bg, _draws=objs,
+      _x=cx+cw-130, _y=cy, _w=122, _h=ELEM_H,
+      _boxX=cx+cw-130,
+      _selTxt=selTxt, _itemObjs=itemObjs, _arrow=arrow,
+      _isOpen=isOpen, Selected=selected,
+      Callback=callback, Options=options or {},
+    }
+
+    function elem:SetOptions(newOpts, newDefault)
+      newOpts = newOpts or {}
+
+      if self._isOpen then
+        self._isOpen = false
+        self._arrow.Text = "v"
+        for _, item in ipairs(self._itemObjs) do
+          item._bg.Visible  = false
+          item._txt.Visible = false
+        end
+        MatchaUI.Choosing = false
+      end
+
+      for i = #objs, 6, -1 do
+        local obj = objs[i]
+        for gi = #_objects, 1, -1 do
+          if _objects[gi] == obj then
+            table.remove(_objects, gi)
+            break
+          end
+        end
+        for _, bucket in pairs(_themeObjects) do
+          for ti = #bucket, 1, -1 do
+            if bucket[ti] == obj then
+              table.remove(bucket, ti)
+              break
             end
+          end
         end
+        for xi = #_textObjects, 1, -1 do
+          if _textObjects[xi] == obj then
+            table.remove(_textObjects, xi)
+            break
+          end
+        end
+        pcall(function() obj:Remove() end)
+        table.remove(objs, i)
+      end
+
+      local newItemObjs = {}
+      local dropBaseZ   = baseZ + 50
+      for i, opt in ipairs(newOpts) do
+        local iBg  = newDraw("Square")
+        iBg.Position    = Vector2.new(0, 0)
+        iBg.Size        = Vector2.new(122, 22)
+        iBg.Color       = Theme.DropdownItem
+        iBg.ZIndex      = dropBaseZ
+        iBg.Filled      = true
+        iBg.Thickness   = 1
+        iBg.Transparency = 1
+        iBg.Visible     = false
+        trackTheme("DropdownItem", iBg)
+
+        local iTxt = newDraw("Text")
+        iTxt.Text         = tostring(opt)
+        iTxt.Position     = Vector2.new(0, 0)
+        iTxt.Size         = 12
+        iTxt.Color        = Theme.TextPrimary
+        iTxt.ZIndex       = dropBaseZ + 1
+        iTxt.Center       = false
+        iTxt.Outline      = true
+        iTxt.Font         = _currentFont
+        iTxt.Transparency = 1
+        iTxt.Visible      = false
+        trackTheme("TextPrimary", iTxt)
+        table.insert(_textObjects, iTxt)
+
+        table.insert(newItemObjs, {_bg=iBg, _txt=iTxt, _value=opt, _x=0, _y=0, _idx=i})
+        table.insert(objs, iBg); table.insert(objs, iTxt)
+      end
+
+      self._itemObjs = newItemObjs
+      self.Options   = newOpts
+
+      local sel = newDefault or newOpts[1] or "None"
+      self.Selected      = sel
+      self._selTxt.Text  = sel
     end
 
-    local function minimize()
-        win.Minimized = not win.Minimized
-        local showContent = not win.Minimized
-        bg.Size         = showContent and Vector2.new(ww, wh) or Vector2.new(ww, TOPBAR_H)
-        shadow.Size     = showContent and Vector2.new(ww+4, wh+4) or Vector2.new(ww+4, TOPBAR_H+4)
-        leftBar.Visible     = showContent
-        contentBg.Visible   = showContent
-        for _, cat in ipairs(win.Categories) do
-            cat._label.Visible = showContent
-            cat._bg.Visible    = showContent
-            if win.ActiveCat == cat then
-                for _, elem in ipairs(cat._elemObjs) do
-                    for _, obj in ipairs(elem) do
-                        pcall(function() obj.Visible = showContent end)
-                    end
-                end
-                -- On un-minimize, restore correct per-element sub-object states
-                if showContent then
-                    for _, elem in ipairs(win._elements) do
-                        if elem._cat ~= cat then continue end
-                        if elem.Type == "Checkbox" and elem._check then
-                            elem._check.Visible = elem.State
-                        end
-                        if (elem.Type == "TextInput") and elem._cursor then
-                            elem._cursor.Visible = false
-                        end
-                        if elem.Type == "Dropdown" then
-                            elem._isOpen = false
-                            elem._arrow.Text = "v"
-                            for _, item in ipairs(elem._itemObjs) do
-                                item._bg.Visible  = false
-                                item._txt.Visible = false
-                            end
-                        end
-                        if elem.Type == "ColorPicker" then
-                            elem._cpOpen = false
-                            elem._arrowTxt.Text = ">"
-                            elem._panelBg.Visible = false
-                            elem._panelBorder.Visible = false
-                            for _, r in ipairs(elem._hueRects) do r.Visible = false end
-                            elem._hueCursor.Visible = false
-                            for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
-                            elem._svCursor.Visible = false
-                            local cs = elem._channelSliders or {}
-                            for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
-                                s._lbl.Visible=false s._val.Visible=false
-                                s._bg.Visible=false s._fill.Visible=false
-                                if s._knob then s._knob.Visible=false end
-                            end end
-                            elem._hexLabel.Visible = false
-                            if elem._prevPatch then elem._prevPatch.Visible = false end
-                            for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
-                        end
-                    end
-                else
-                    -- On minimize, clear focused input if it belongs to this window
-                    if _focusedInput and _focusedInput._cat == cat then
-                        _focusedInput.Focused = false
-                        if _focusedInput._cursor then _focusedInput._cursor.Visible = false end
-                        setrobloxinput(true)
-                        _focusedInput = nil
-                    end
-                end
-            end
-        end
-        minTxt.Text = win.Minimized and "+" or "-"
+    registerElemDesc(cat, elem)
+    return elem
+  end
+
+  -- ── TEXT INPUT
+  local function addTextInput(cat, labelText, placeholder, callback)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local text = ""
+    local focused = false
+    local objs = {}
+    local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+    trackTheme("TextSecondary", lbl)
+    local inputBg = draw(createRectangle(cx + cw - 160, cy + 4, 152, 22, Theme.InputBg, baseZ+6, true))
+    trackTheme("InputBg", inputBg)
+    local inputTxt = draw(createText(placeholder or "", cx + cw - 156, cy + 9, 12, Theme.TextDisabled, baseZ+7, false, true))
+    trackTheme("TextDisabled", inputTxt)
+    local cursor   = draw(createRectangle(cx + cw - 156, cy + 7, 1, 14, Theme.AccentOn, baseZ+8, true))
+    trackAccent(cursor)
+    cursor.Visible = false
+    table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, inputBg)
+    table.insert(objs, inputTxt); table.insert(objs, cursor)
+    registerElem(cat, objs, ELEM_H)
+    local elem = {
+      Type="TextInput", _bg=bg, _draws=objs,
+      _x=cx+cw-160, _y=cy, _w=160, _h=ELEM_H,
+      _inputTxt=inputTxt, _cursor=cursor, _inputBg=inputBg,
+      _placeholder=placeholder or "",
+      Text=text, Focused=focused, Callback=callback,
+    }
+    registerElemDesc(cat, elem)
+    return elem
+  end
+
+  -- ── CHECKBOX
+  local function addCheckbox(cat, labelText, default, callback)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local state = default or false
+    local objs = {}
+    local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl = draw(createText(labelText, cx + 30, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
+    trackTheme("TextPrimary", lbl)
+    local boxSz = 16
+    local bx = cx + 8
+    local by = cy + ELEM_H/2 - boxSz/2
+    local box  = draw(createRectangle(bx, by, boxSz, boxSz, Theme.InputBg, baseZ+6, true))
+    trackTheme("InputBg", box)
+    local boxBorder = draw(createRectangle(bx, by, boxSz, boxSz, Theme.ElementBorder, baseZ+6, false))
+    trackTheme("ElementBorder", boxBorder)
+    boxBorder.Filled = false
+    local check = draw(createRectangle(bx+3, by+3, boxSz-6, boxSz-6, Theme.AccentOn, baseZ+7, true))
+    trackAccent(check)
+    check.Visible = state
+    table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, box)
+    table.insert(objs, boxBorder); table.insert(objs, check)
+    registerElem(cat, objs, ELEM_H)
+    local elem = {
+      Type="Checkbox", _bg=bg, _draws=objs,
+      _x=cx, _y=cy, _w=cw, _h=ELEM_H,
+      _check=check, _box=box,
+      State=state, Callback=callback,
+    }
+    registerElemDesc(cat, elem)
+    return elem
+  end
+
+  -- ── KEYBIND
+  local function addKeybind(cat, labelText, defaultKey, callback)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local key = defaultKey or 0x2D
+    local listening = false
+    local objs = {}
+    local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+    trackTheme("TextSecondary", lbl)
+    local kbBg  = draw(createRectangle(cx + cw - 100, cy + 4, 92, 22, Theme.InputBg, baseZ+6, true))
+    trackTheme("InputBg", kbBg)
+    local kbTxt = draw(createText("[ " .. (KeyNames[key] or "?") .. " ]", cx + cw - 98, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
+    trackTheme("TextPrimary", kbTxt)
+    table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, kbBg); table.insert(objs, kbTxt)
+    registerElem(cat, objs, ELEM_H)
+    local elem = {
+      Type="Keybind", _bg=bg, _draws=objs,
+      _x=cx+cw-100, _y=cy, _w=92, _h=ELEM_H,
+      _kbTxt=kbTxt, Key=key, Listening=false,
+      Callback=callback,
+    }
+    registerElemDesc(cat, elem)
+    return elem
+  end
+
+  -- Color picker; Layout: Header row : [Label]  [Preview swatch]  [> button] Panel (opens to the RIGHT of the window, floating): Left  : hex color palette (10 cols × 8 rows of swatches); Right : R/G/B +/- steppers + hex label + live preview
+  local function addColorPicker(cat, labelText, defaultColor, callback)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local rowH = ELEM_H
+    local color = defaultColor or Color3.fromRGB(255, 100, 100)
+    local objs = {}
+
+    local bg      = draw(createRectangle(cx, cy, cw, rowH, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl     = draw(createText(labelText, cx + 8, cy + 6, 12, Theme.TextSecondary, baseZ+6, false, true))
+    trackTheme("TextSecondary", lbl)
+    local preview = draw(createRectangle(cx + cw - 54, cy + 4, 22, 22, color, baseZ+7, true))
+    local arrowBtn = draw(createRectangle(cx + cw - 28, cy + 4, 22, 22, Theme.InputBg, baseZ+7, true))
+    trackTheme("InputBg", arrowBtn)
+    local arrowTxt = draw(createText(">", cx + cw - 22, cy + 8, 12, Theme.AccentOn, baseZ+8, false, false))
+    trackAccent(arrowTxt)
+    table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, preview)
+    table.insert(objs, arrowBtn); table.insert(objs, arrowTxt)
+
+    local panelX  = win.X + ww + 4
+    local panelY  = cy
+    local swatchSz = 16
+    local swatchGap = 2
+    local palCols = 10
+    local palRows = 8
+    local palW    = palCols * (swatchSz + swatchGap) - swatchGap
+    local palH    = palRows * (swatchSz + swatchGap) - swatchGap
+    local rsAreaX = panelX + palW + 8
+    local rsAreaW = 80
+    local panelW  = palW + 8 + rsAreaW + 8
+    local panelH  = palH + 8
+
+    local panelObjs = {}
+    local panelObjOffsets = {}
+
+    local function addPanelObj(o)
+      table.insert(panelObjs, o)
+      table.insert(objs, o)
+      pcall(function()
+        table.insert(panelObjOffsets, {
+          dx = o.Position.X - panelX,
+          dy = o.Position.Y - panelY,
+        })
+      end)
+      return o
     end
 
-    -- ─────────────────────────────
-    -- Add Category
-    -- ─────────────────────────────
-    local function addCategory(name)
-        local idx  = #win.Categories
-        local cy   = win.Y + TOPBAR_H + idx * CAT_H + 4
-        local cx   = win.X + 4
+    local panelBg = addPanelObj(draw(createRectangle(panelX, panelY, panelW, panelH + 4, Theme.DropdownBg, baseZ+50, true)))
+    trackTheme("DropdownBg", panelBg)
+    panelBg.Visible = false
 
-        local catBg = draw(makeRect(cx, cy, LEFTBAR_W - 8, CAT_H - 2, Theme.LeftBar, baseZ+3, true))
-        trackTheme("LeftBar", catBg)
-        local catLbl = draw(makeText(name, cx + 8, cy + 7, 13, Theme.CategoryText, baseZ+4, false, true))
-        trackTheme("CategoryText", catLbl)
+    local panelBorder = addPanelObj(draw(createRectangle(panelX, panelY, panelW, panelH + 4, Theme.ElementBorder, baseZ+50, false)))
+    trackTheme("ElementBorder", panelBorder)
+    panelBorder.Filled = false; panelBorder.Thickness = 1; panelBorder.Visible = false
 
-        local cat = {
-            Name      = name,
-            _bg       = catBg,
-            _label    = catLbl,
-            _elemObjs = {},      -- list of draw-object arrays per element
-            _elems    = {},      -- element descriptors
-            _scrollY  = 0,
-        }
-        table.insert(win.Categories, cat)
+    local PALETTE = {
+      "8B0000","B22222","CC2200","FF0000","FF4500","FF6347","FF7F50","FF8C00","FFA500","FFD700",
+      "FFFF00","ADFF2F","7FFF00","00FF00","00FA9A","00FF7F","39FF14","00FF80","00FFAA","00FFCC",
+      "00FFFF","00CED1","00BFFF","1E90FF","0000FF","0000CD","00008B","191970","483D8B","6A0DAD",
+      "8B008B","9400D3","EE82EE","FF00FF","FF1493","FF69B4","FFB6C1","C71585","DB7093","FF007F",
+      "A52A2A","8B4513","D2691E","CD853F","DEB887","F5DEB3","FFE4B5","FFDAB9","FAEBD7","FAF0E6",
+      "4169E1","6495ED","87CEEB","ADD8E6","B0E0E6","5F9EA0","4682B4","708090","778899","B0C4DE",
+      "006400","228B22","2E8B57","3CB371","66CDAA","8FBC8F","90EE90","98FB98","F0FFF0","E8F5E9",
+      "000000","1A1A1A","333333","555555","777777","999999","AAAAAA","CCCCCC","EEEEEE","FFFFFF",
+    }
 
-        if not win.ActiveCat then
-            win.ActiveCat = cat
-            catBg.Color   = Theme.CategoryActive
-        end
-
-        return cat
+    local paletteSwatches = {}
+    for i, hexStr in ipairs(PALETTE) do
+      local row = math.floor((i-1) / palCols)
+      local col = (i-1) % palCols
+      local sx  = panelX + 4 + col * (swatchSz + swatchGap)
+      local sy  = panelY + 4 + row * (swatchSz + swatchGap)
+      local r2  = tonumber(hexStr:sub(1,2), 16) or 0
+      local g2  = tonumber(hexStr:sub(3,4), 16) or 0
+      local b2  = tonumber(hexStr:sub(5,6), 16) or 0
+      local sw  = addPanelObj(draw(createRectangle(sx, sy, swatchSz, swatchSz, Color3.fromRGB(r2,g2,b2), baseZ+52, true)))
+      sw.Visible = false
+      table.insert(paletteSwatches, {_r=sw, _x=sx, _y=sy, _w=swatchSz, _h=swatchSz,
+        _color=Color3.fromRGB(r2,g2,b2)})
     end
 
-    -- Content cursor tracker (returns current Y for next element)
-    local function contentCursorY(cat)
-        local baseY = win.Y + TOPBAR_H + CONTENT_PAD + cat._scrollY
-        for _, eObjs in ipairs(cat._elemObjs) do
-            -- each element stores its height in eObjs._h
-            baseY = baseY + (eObjs._h or ELEM_H) + ELEM_PAD
-        end
-        return baseY
+    local function colorToHex(c)
+      return string.format("#%02X%02X%02X", math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
     end
 
-    local function contentX()
-        return win.X + LEFTBAR_W + CONTENT_PAD
+    local chRowH = 24
+    local slPad = 4
+    local lblW = 12
+    local valW2 = 28
+    local slTrackX = rsAreaX + slPad + lblW + valW2 + 4
+    local slTrackW = rsAreaW - slPad - lblW - valW2 - 4 - slPad
+    local knobW2 = 8
+
+    local channels = {"R","G","B"}
+    local channelSliders = {}
+    local btnObjs = {}
+
+    local chFillColors = {
+      R = Color3.fromRGB(220, 60, 60),
+      G = Color3.fromRGB(60, 200, 60),
+      B = Color3.fromRGB(60, 100, 220),
+    }
+
+    local _rSlider = {_x=0,_y=0,_w=1,_h=1,_bg=nil,_fill=nil,_lbl=nil,_val=nil}
+    local _gSlider = {_x=0,_y=0,_w=1,_h=1,_bg=nil,_fill=nil,_lbl=nil,_val=nil}
+    local _bSlider = {_x=0,_y=0,_w=1,_h=1,_bg=nil,_fill=nil,_lbl=nil,_val=nil}
+
+    for ci, ch in ipairs(channels) do
+      local rowY = panelY + 4 + (ci-1) * chRowH
+
+      local lbl2 = draw(createText(ch, rsAreaX + slPad, rowY + 6, 11,
+        Theme.TextSecondary, baseZ+52, false, false))
+      lbl2.Visible = false; addPanelObj(lbl2)
+
+      local initV = math.floor((ch=="R" and color.R or ch=="G" and color.G or color.B) * 255)
+      local valT  = draw(createText(tostring(initV),
+        rsAreaX + slPad + lblW + 2, rowY + 6, 11,
+        Theme.TextPrimary, baseZ+52, false, false))
+      valT.Visible = false; addPanelObj(valT)
+
+      local trackBg2 = draw(createRectangle(slTrackX, rowY + 8, slTrackW, 4,
+        Theme.SliderTrack, baseZ+52, true))
+      trackBg2.Visible = false; addPanelObj(trackBg2)
+
+      local initPct  = initV / 255
+      local initFillW = math.max(1, math.floor(slTrackW * initPct))
+      local fillRect2 = draw(createRectangle(slTrackX, rowY + 8, initFillW, 4,
+        chFillColors[ch], baseZ+53, true))
+      fillRect2.Visible = false; addPanelObj(fillRect2)
+
+      local knobX2 = slTrackX + initFillW - knobW2/2
+      local knobY2 = rowY + 3
+      local knob2  = draw(createRectangle(knobX2, knobY2, knobW2, 14,
+        Theme.SliderKnob, baseZ+54, true))
+      knob2.Visible = false; addPanelObj(knob2)
+
+      local slInfo = {
+        _lbl=lbl2, _val=valT,
+        _bg=trackBg2, _fill=fillRect2,
+        _minBg=trackBg2, _minTx=lbl2,
+        _plusBg=trackBg2, _plusTx=valT,
+        _fillRect=fillRect2, _knob=knob2,
+        _trackX=slTrackX, _trackW=slTrackW,
+        _knobY=knobY2, _rowY=rowY,
+      }
+      channelSliders[ch] = slInfo
+
+      table.insert(btnObjs, {
+        _x=slTrackX, _y=rowY+2, _w=slTrackW, _h=16,
+        _ch=ch, _isSlider=true,
+        _fillRect=fillRect2, _knob=knob2,
+        _trackX=slTrackX, _trackW=slTrackW, _knobY=knobY2,
+      })
+
+      if ch=="R" then
+        _rSlider = {_bg=trackBg2,_fill=fillRect2,_lbl=lbl2,_val=valT,
+          _x=slTrackX,_y=rowY,_w=slTrackW,_h=14}
+      elseif ch=="G" then
+        _gSlider = {_bg=trackBg2,_fill=fillRect2,_lbl=lbl2,_val=valT,
+          _x=slTrackX,_y=rowY,_w=slTrackW,_h=14}
+      else
+        _bSlider = {_bg=trackBg2,_fill=fillRect2,_lbl=lbl2,_val=valT,
+          _x=slTrackX,_y=rowY,_w=slTrackW,_h=14}
+      end
     end
 
-    local function contentW()
-        return ww - LEFTBAR_W - CONTENT_PAD * 2
+    local hexLblY  = panelY + 4 + 3*chRowH + 4
+    local hexLabel = addPanelObj(draw(createText(colorToHex(color), rsAreaX + slPad, hexLblY, 10,
+      Theme.TextSecondary, baseZ+52, false, false)))
+    hexLabel.Visible = false
+
+    local prevPatch = addPanelObj(draw(createRectangle(rsAreaX + slPad, hexLblY + 14, rsAreaW - slPad*2, 14,
+      color, baseZ+52, true)))
+    prevPatch.Visible = false
+
+    registerElem(cat, objs, rowH)
+
+    local _elemRef = { Color = nil }
+
+    local function refreshAll()
+      local c = _elemRef.Color or color
+      preview.Color   = c
+      prevPatch.Color = c
+      hexLabel.Text   = colorToHex(c)
+      local rv = math.floor(c.R*255)
+      local gv = math.floor(c.G*255)
+      local bv = math.floor(c.B*255)
+      local vals = {R=rv, G=gv, B=bv}
+      for _, ch2 in ipairs({"R","G","B"}) do
+        local s = channelSliders[ch2]
+        if s then
+          s._val.Text = tostring(vals[ch2])
+          local pct2 = vals[ch2] / 255
+          local fw2  = math.max(1, math.floor(pct2 * s._trackW))
+          s._fillRect.Size = Vector2.new(fw2, 4)
+          s._knob.Position = Vector2.new(s._trackX + fw2 - knobW2/2, s._knobY)
+        end
+      end
+      if callback then pcall(callback, c) end
     end
 
-    -- Activate a category (show its content, hide others)
-    local function activateCategory(cat)
-        if win.ActiveCat == cat then return end
-        -- hide old
-        if win.ActiveCat then
-            win.ActiveCat._bg.Color = Theme.LeftBar
-            for _, elem in ipairs(win.ActiveCat._elemObjs) do
-                for _, obj in ipairs(elem) do
-                    pcall(function() obj.Visible = false end)
-                end
-            end
-            -- Ensure the focused input loses focus when switching categories
-            if _focusedInput and _focusedInput._cat == win.ActiveCat then
-                _focusedInput.Focused = false
-                if _focusedInput._cursor then _focusedInput._cursor.Visible = false end
-                setrobloxinput(true)
-                _focusedInput = nil
-            end
-        end
-        win.ActiveCat = cat
-        cat._bg.Color = Theme.CategoryActive
-        -- Show the new category's base draw objects
-        for _, elem in ipairs(cat._elemObjs) do
-            for _, obj in ipairs(elem) do
-                pcall(function() obj.Visible = true end)
-            end
-        end
-        -- Correct per-element sub-object states AFTER making the base set visible
-        for _, elem in ipairs(win._elements) do
-            if elem._cat ~= cat then continue end
-            -- Checkbox: marker only visible if checked
-            if elem.Type == "Checkbox" and elem._check then
-                elem._check.Visible = elem.State
-            end
-            -- TextInput: cursor always starts hidden until re-focused
-            if (elem.Type == "TextInput") and elem._cursor then
-                elem._cursor.Visible = false
-            end
-            -- Dropdown: item list always starts closed
-            if elem.Type == "Dropdown" then
-                elem._isOpen = false
-                elem._arrow.Text = "v"
-                for _, item in ipairs(elem._itemObjs) do
-                    item._bg.Visible  = false
-                    item._txt.Visible = false
-                end
-            end
-            -- ColorPicker: panel always starts closed
-            if elem.Type == "ColorPicker" then
-                elem._cpOpen = false
-                elem._arrowTxt.Text = ">"
-                elem._panelBg.Visible = false
-                elem._panelBorder.Visible = false
-                for _, r in ipairs(elem._hueRects) do r.Visible = false end
-                elem._hueCursor.Visible = false
-                for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
-                elem._svCursor.Visible = false
-                local cs = elem._channelSliders or {}
-                for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
-                    s._lbl.Visible=false s._val.Visible=false
-                    s._bg.Visible=false s._fill.Visible=false
-                    if s._knob then s._knob.Visible=false end
-                end end
-                elem._hexLabel.Visible = false
-                if elem._prevPatch then elem._prevPatch.Visible = false end
-                for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
-            end
-        end
+    local elem = {
+      Type="ColorPicker", _bg=bg, _draws=objs,
+      _x=cx+cw-54, _y=cy, _w=54, _h=rowH,
+      _arrowX=cx+cw-28, _arrowY=cy+4, _arrowW=22, _arrowH=22,
+      _headerX=cx, _headerY=cy, _headerW=cw, _headerH=rowH,
+      _panelBg=panelBg, _panelBorder=panelBorder,
+      _panelX=panelX, _panelY=panelY, _panelW=panelW, _panelH=panelH+4,
+      _panelObjs=panelObjs,
+      _panelObjOffsets=panelObjOffsets,
+      _buildPanelX=panelX, _buildPanelY=panelY,
+      _hueRects={}, _hueCursor=panelBorder,
+      _svRects={}, _svCursor=panelBorder,
+      _rSlider=_rSlider, _gSlider=_gSlider, _bSlider=_bSlider,
+      _hexLabel=hexLabel,
+      _preview=preview, _arrowTxt=arrowTxt,
+      _paletteSwatch=paletteSwatches,
+      _channelSliders=channelSliders,
+      _btnObjs=btnObjs,
+      _prevPatch=prevPatch,
+      _swatches={},
+      _cpOpen=false,
+      _cpDragCh=nil,
+      _cpDragHue=false, _cpDragR=false, _cpDragG=false, _cpDragB=false, _cpDragSV=false,
+      Color=color,
+      _cpHue=0, _cpSat=1, _cpVal=1,
+      _refreshSV=function() end,
+      _refreshAll=refreshAll,
+      _rsW=rsAreaW, _rsH=14, _rsX=rsAreaX,
+      Callback=callback,
+    }
+
+    for _, sw in ipairs(paletteSwatches) do
+      sw._origDX = sw._x - panelX
+      sw._origDY = sw._y - panelY
     end
 
-    -- ─────────────────────────────
-    -- ELEMENT BUILDERS
-    -- (all return an element table)
-    -- ─────────────────────────────
-
-    -- Helper: register element draw-objects with a category
-    local function registerElem(cat, objs, h)
-        objs._h = h or ELEM_H
-        table.insert(cat._elemObjs, objs)
-        -- hide if not active
-        if win.ActiveCat ~= cat then
-            for _, obj in ipairs(objs) do
-                pcall(function() obj.Visible = false end)
-            end
-        end
+    for _, btn in ipairs(btnObjs) do
+      btn._origDX = btn._x - panelX
+      btn._origDY = btn._y - panelY
+      if btn._trackX then btn._origTrackDX = btn._trackX - panelX end
+      if btn._knobY then btn._origKnobDY = btn._knobY - panelY end
     end
 
-    -- Helper: register an element descriptor and tag it with its category
-    local function registerElemDesc(cat, elem)
-        elem._cat = cat
-        table.insert(win._elements, elem)
-        return elem
+    for _, s in pairs(channelSliders) do
+      if s._trackX then s._origTrackDX = s._trackX - panelX end
+      if s._knobY then s._origKnobDY = s._knobY - panelY end
+      if s._rowY then s._origRowDY = s._rowY - panelY end
     end
 
-    -- ── SECTION HEADER (grouping label)
-    local function addSection(cat, labelText)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local objs = {}
-        local bg   = draw(makeRect(cx, cy, cw, 20, Theme.SectionHeader, baseZ+5, true))
-        trackTheme("SectionHeader", bg)
-        local lbl  = draw(makeText(labelText, cx + 6, cy + 4, 12, Theme.SectionText, baseZ+6, false, true))
-        trackAccent(lbl)
-        table.insert(objs, bg)   -- BUGFIX: bg must be in objs so it is shown/hidden with the category
-        table.insert(objs, lbl)  -- and repositioned correctly during window drag
-        registerElem(cat, objs, 20)
-        return objs
+    _elemRef.Color = nil
+    _elemRef._channelSliders = channelSliders
+
+    elem._refreshAll = function()
+      _elemRef.Color = elem.Color
+      refreshAll()
     end
 
-    -- ── BUTTON
-    local function addButton(cat, labelText, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local objs  = {}
-        local btnBg = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", btnBg)
-        local btnLbl = draw(makeText(labelText, cx + cw/2, cy + ELEM_H/2 - 6, 14, Theme.TextPrimary, baseZ+6, true, false))
-        trackTheme("TextPrimary", btnLbl)
-        table.insert(objs, btnBg)
-        table.insert(objs, btnLbl)
-        registerElem(cat, objs, ELEM_H)
-        local elem = {
-            Type = "Button", _bg = btnBg, _draws = objs,
-            _x=cx, _y=cy, _w=cw, _h=ELEM_H,
-            Callback = callback,
-        }
-        registerElemDesc(cat, elem)
-        return elem
-    end
+    registerElemDesc(cat, elem)
+    return elem
+  end
 
-    -- ── TOGGLE
-    local function addToggle(cat, labelText, default, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local state = default or false
-        local objs = {}
-        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
-        trackTheme("TextPrimary", lbl)
-        local trackW, trackH = 36, 16
-        local tx = cx + cw - trackW - 8
-        local ty = cy + ELEM_H/2 - trackH/2
-        local track   = draw(makeRect(tx, ty, trackW, trackH, state and Theme.AccentOn or Theme.AccentOff, baseZ+6, true))
-        if not state then trackTheme("AccentOff", track) end
-        -- knob
-        local knobSz  = 12
-        local knob    = draw(makeRect(
-            state and (tx + trackW - knobSz - 2) or (tx + 2),
-            ty + 2, knobSz, knobSz, Theme.SliderKnob, baseZ+7, true
-        ))
-        table.insert(objs, bg) table.insert(objs, lbl)
-        table.insert(objs, track) table.insert(objs, knob)
-        registerElem(cat, objs, ELEM_H)
-        local elem = {
-            Type="Toggle", _bg=bg, _draws=objs,
-            _x=cx, _y=cy, _w=cw, _h=ELEM_H,
-            _tx=tx, _ty=ty, _trackW=trackW, _trackH=trackH,
-            _knob=knob, _track=track, _knobSz=knobSz,
-            State=state, Callback=callback,
-        }
-        registerElemDesc(cat, elem)
-        return elem
-    end
+  -- ── VALUE LABEL
+  local function addValueLabel(cat, labelText, defaultValue)
+    local cx  = contentX()
+    local cw  = contentW()
+    local cy  = contentCursorY(cat)
+    local objs = {}
+    local bg   = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+    trackTheme("ElementBg", bg)
+    local lbl  = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+    trackTheme("TextSecondary", lbl)
+    local valW   = 100
+    local valX   = cx + cw - valW - 6
+    local valRightEdge = cx + cw - 8
+    local valCover = draw(createRectangle(cx + cw - valW - 6, cy + 1, valW + 2, ELEM_H - 2, Theme.ElementBg, baseZ+6, true))
+    trackTheme("ElementBg", valCover)
+    local initStr = tostring(defaultValue or "")
+    local initX   = valRightEdge - math.min(#initStr * 7, valW)
+    local valTxt  = draw(createText(initStr, initX, cy + ELEM_H/2 - 7, 13, Theme.AccentOn, baseZ+7, false, true))
+    trackAccent(valTxt)
+    table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, valCover); table.insert(objs, valTxt)
+    registerElem(cat, objs, ELEM_H)
+    local elem = {
+      Type="ValueLabel", _bg=bg, _draws=objs,
+      _x=cx, _y=cy, _w=cw, _h=ELEM_H,
+      _valTxt=valTxt, _valCover=valCover, _valW=valW,
+      _valRightEdge=valRightEdge,
+      _labelTxt=lbl,
+      Value=defaultValue or "",
+      SetValue=function(self, v)
+        self.Value = v
+        local s = tostring(v)
+        self._valTxt.Text = s
+        local estimatedW = math.min(#s * 7, self._valW)
+        self._valTxt.Position = Vector2.new(
+          self._valRightEdge - estimatedW,
+          self._valTxt.Position.Y
+        )
+      end,
+    }
+    registerElemDesc(cat, elem)
+    return elem
+  end
 
-    -- ── SLIDER
-    local function addSlider(cat, labelText, min, max, default, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local h   = ELEM_H + 10
-        local val = default or min
-        local objs = {}
-        local bg  = draw(makeRect(cx, cy, cw, h, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl = draw(makeText(labelText, cx + 8, cy + 6, 12, Theme.TextPrimary, baseZ+6, false, true))
-        trackTheme("TextPrimary", lbl)
-        local valLbl = draw(makeText(tostring(math.floor(val)), cx + cw - 30, cy + 6, 12, Theme.AccentOn, baseZ+6, false, true))
-        trackAccent(valLbl)
-        -- track
-        local trackPad = 8
-        local trackW = cw - trackPad*2
-        local trackY  = cy + h - 12
-        local trackBg = draw(makeRect(cx + trackPad, trackY, trackW, 4, Theme.SliderTrack, baseZ+6, true))
-        trackTheme("SliderTrack", trackBg)
-        -- fill
-        local fillPct = (val - min) / math.max(max - min, 0.001)
-        local fillW   = math.floor(trackW * fillPct)
-        local fillRect = draw(makeRect(cx + trackPad, trackY, math.max(fillW,1), 4, Theme.SliderFill, baseZ+7, true))
-        trackAccent(fillRect)
-        -- knob
-        local knobW, knobH = 10, 14
-        local knobX = cx + trackPad + fillW - knobW/2
-        local knobY = trackY - 5
-        local knob  = draw(makeRect(knobX, knobY, knobW, knobH, Theme.SliderKnob, baseZ+8, true))
-        trackTheme("SliderKnob", knob)
-        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, valLbl)
-        table.insert(objs, trackBg) table.insert(objs, fillRect) table.insert(objs, knob)
-        registerElem(cat, objs, h)
-        local elem = {
-            Type="Slider", _bg=bg, _draws=objs,
-            _x=cx, _y=cy, _w=cw, _h=h,
-            _trackX = cx + trackPad, _trackY = trackY,
-            _trackW = trackW,
-            _fillRect = fillRect, _knob = knob, _valLbl = valLbl,
-            _knobW = knobW, _knobH = knobH,
-            Min=min, Max=max, Value=val,
-            Dragging=false, Callback=callback,
-        }
-        registerElemDesc(cat, elem)
-        return elem
-    end
-
-    -- ── DROPDOWN
-    local function addDropdown(cat, labelText, options, default, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local selected = default or (options and options[1]) or ""
-        local isOpen   = false
-        local objs     = {}
-        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
-        trackTheme("TextSecondary", lbl)
-        local boxBg  = draw(makeRect(cx + cw - 130, cy + 4, 122, 22, Theme.InputBg, baseZ+6, true))
-        trackTheme("InputBg", boxBg)
-        local selTxt = draw(makeText(selected, cx + cw - 126, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
-        trackTheme("TextPrimary", selTxt)
-        local arrow  = draw(makeText("v", cx + cw - 14, cy + 9, 11, Theme.AccentOn, baseZ+7, false, false))
-        trackAccent(arrow)
-        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, boxBg)
-        table.insert(objs, selTxt) table.insert(objs, arrow)
-
-        -- Dropdown items (hidden by default, high Z)
-        -- Items are built at y=0 (placeholder). Their real position is computed on open
-        -- by reading the current _bg.Position so they always anchor to the actual
-        -- visual location of the dropdown box — even inside a ScrollFrame that has shifted
-        -- or scrolled the element after construction.
-        local itemObjs = {}
-        local dropBaseZ = baseZ + 50  -- always on top
-        for i, opt in ipairs(options or {}) do
-            local iBg  = draw(makeRect(0, 0, 122, 22, Theme.DropdownItem, dropBaseZ, true))
-            trackTheme("DropdownItem", iBg)
-            local iTxt = draw(makeText(opt, 0, 0, 12, Theme.TextPrimary, dropBaseZ+1, false, true))
-            trackTheme("TextPrimary", iTxt)
-            iBg.Visible  = false
-            iTxt.Visible = false
-            -- _x/_y start at 0; they are overwritten every time the menu opens.
-            table.insert(itemObjs, {_bg=iBg, _txt=iTxt, _value=opt, _x=0, _y=0, _idx=i})
-            table.insert(objs, iBg)
-            table.insert(objs, iTxt)
-        end
-        registerElem(cat, objs, ELEM_H)
-        local elem = {
-            Type="Dropdown", _bg=bg, _draws=objs,
-            _x=cx+cw-130, _y=cy, _w=122, _h=ELEM_H,
-            _boxX=cx+cw-130,  -- left edge of the dropdown box (for item X positioning)
-            _selTxt=selTxt, _itemObjs=itemObjs, _arrow=arrow,
-            _isOpen=isOpen, Selected=selected,
-            Callback=callback, Options=options or {},
-        }
-        -- ── SetOptions: replace the item list of this dropdown at runtime.
-        -- Usage: dropdownElem:SetOptions({"A","B","C"}, "A")
-        -- • Closes the dropdown if open.
-        -- • Removes old item Drawing objects from _objects, _themeObjects, and objs.
-        -- • Creates new items following the exact same pattern as construction time.
-        -- • Updates elem.Options, elem._itemObjs, elem.Selected, and elem._selTxt.
-        -- • newDefault is optional; if omitted defaults to newOpts[1] or "None".
-        function elem:SetOptions(newOpts, newDefault)
-            newOpts = newOpts or {}
-
-            -- 1. Close if currently open
-            if self._isOpen then
-                self._isOpen = false
-                self._arrow.Text = "v"
-                for _, item in ipairs(self._itemObjs) do
-                    item._bg.Visible  = false
-                    item._txt.Visible = false
-                end
-                MatchaUI.Choosing = false
-            end
-
-            -- 2. Remove old item Drawing objects from every registry that holds them.
-            --    objs[1..5] are the fixed draws (bg, lbl, boxBg, selTxt, arrow).
-            --    Items occupy objs[6..end] — strip them.
-            for i = #objs, 6, -1 do
-                local obj = objs[i]
-                -- Remove from global _objects list
-                for gi = #_objects, 1, -1 do
-                    if _objects[gi] == obj then
-                        table.remove(_objects, gi)
-                        break
-                    end
-                end
-                -- Remove from _themeObjects (TextPrimary and DropdownItem)
-                for _, bucket in pairs(_themeObjects) do
-                    for ti = #bucket, 1, -1 do
-                        if bucket[ti] == obj then
-                            table.remove(bucket, ti)
-                            break
-                        end
-                    end
-                end
-                -- Remove from _textObjects so SetFont stops referencing dead objects
-                for xi = #_textObjects, 1, -1 do
-                    if _textObjects[xi] == obj then
-                        table.remove(_textObjects, xi)
-                        break
-                    end
-                end
-                pcall(function() obj:Remove() end)
-                table.remove(objs, i)
-            end
-
-            -- 3. Build new item Drawing objects (mirrors the construction-time loop)
-            local newItemObjs = {}
-            local dropBaseZ   = baseZ + 50
-            for i, opt in ipairs(newOpts) do
-                local iBg  = newDraw("Square")
-                iBg.Position    = Vector2.new(0, 0)
-                iBg.Size        = Vector2.new(122, 22)
-                iBg.Color       = Theme.DropdownItem
-                iBg.ZIndex      = dropBaseZ
-                iBg.Filled      = true
-                iBg.Thickness   = 1
-                iBg.Transparency = 1
-                iBg.Visible     = false
-                trackTheme("DropdownItem", iBg)
-
-                local iTxt = newDraw("Text")
-                iTxt.Text         = tostring(opt)
-                iTxt.Position     = Vector2.new(0, 0)
-                iTxt.Size         = 12
-                iTxt.Color        = Theme.TextPrimary
-                iTxt.ZIndex       = dropBaseZ + 1
-                iTxt.Center       = false
-                iTxt.Outline      = true
-                iTxt.Font         = _currentFont
-                iTxt.Transparency = 1
-                iTxt.Visible      = false
-                trackTheme("TextPrimary", iTxt)
-                table.insert(_textObjects, iTxt)
-
-                table.insert(newItemObjs, {_bg=iBg, _txt=iTxt, _value=opt, _x=0, _y=0, _idx=i})
-                table.insert(objs, iBg)
-                table.insert(objs, iTxt)
-            end
-
-            -- 4. Update the element descriptor
-            self._itemObjs = newItemObjs
-            self.Options   = newOpts
-
-            local sel = newDefault or newOpts[1] or "None"
-            self.Selected      = sel
-            self._selTxt.Text  = sel
-        end
-
-        registerElemDesc(cat, elem)
-        return elem
-    end
-
-    -- ── TEXT INPUT
-    local function addTextInput(cat, labelText, placeholder, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local text = ""
-        local focused = false
-        local objs = {}
-        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
-        trackTheme("TextSecondary", lbl)
-        local inputBg = draw(makeRect(cx + cw - 160, cy + 4, 152, 22, Theme.InputBg, baseZ+6, true))
-        trackTheme("InputBg", inputBg)
-        local inputTxt = draw(makeText(placeholder or "", cx + cw - 156, cy + 9, 12, Theme.TextDisabled, baseZ+7, false, true))
-        trackTheme("TextDisabled", inputTxt)
-        local cursor   = draw(makeRect(cx + cw - 156, cy + 7, 1, 14, Theme.AccentOn, baseZ+8, true))
-        trackAccent(cursor)
-        cursor.Visible = false
-        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, inputBg)
-        table.insert(objs, inputTxt) table.insert(objs, cursor)
-        registerElem(cat, objs, ELEM_H)
-        local elem = {
-            Type="TextInput", _bg=bg, _draws=objs,
-            _x=cx+cw-160, _y=cy, _w=160, _h=ELEM_H,
-            _inputTxt=inputTxt, _cursor=cursor, _inputBg=inputBg,
-            _placeholder=placeholder or "",
-            Text=text, Focused=focused, Callback=callback,
-        }
-        registerElemDesc(cat, elem)
-        return elem
-    end
-
-    -- ── CHECKBOX
-    local function addCheckbox(cat, labelText, default, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local state = default or false
-        local objs = {}
-        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl = draw(makeText(labelText, cx + 30, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
-        trackTheme("TextPrimary", lbl)
-        local boxSz = 16
-        local bx = cx + 8
-        local by = cy + ELEM_H/2 - boxSz/2
-        local box  = draw(makeRect(bx, by, boxSz, boxSz, Theme.InputBg, baseZ+6, true))
-        trackTheme("InputBg", box)
-        -- border
-        local boxBorder = draw(makeRect(bx, by, boxSz, boxSz, Theme.ElementBorder, baseZ+6, false))
-        trackTheme("ElementBorder", boxBorder)
-        boxBorder.Filled = false
-        -- check mark (filled accent square inside)
-        local check = draw(makeRect(bx+3, by+3, boxSz-6, boxSz-6, Theme.AccentOn, baseZ+7, true))
-        trackAccent(check)
-        check.Visible = state
-        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, box)
-        table.insert(objs, boxBorder) table.insert(objs, check)
-        registerElem(cat, objs, ELEM_H)
-        local elem = {
-            Type="Checkbox", _bg=bg, _draws=objs,
-            _x=cx, _y=cy, _w=cw, _h=ELEM_H,
-            _check=check, _box=box,
-            State=state, Callback=callback,
-        }
-        registerElemDesc(cat, elem)
-        return elem
-    end
-
-    -- ── KEYBIND
-    local function addKeybind(cat, labelText, defaultKey, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local key = defaultKey or 0x2D
-        local listening = false
-        local objs = {}
-        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
-        trackTheme("TextSecondary", lbl)
-        local kbBg  = draw(makeRect(cx + cw - 100, cy + 4, 92, 22, Theme.InputBg, baseZ+6, true))
-        trackTheme("InputBg", kbBg)
-        local kbTxt = draw(makeText("[ " .. (KeyNames[key] or "?") .. " ]", cx + cw - 98, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
-        trackTheme("TextPrimary", kbTxt)
-        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, kbBg) table.insert(objs, kbTxt)
-        registerElem(cat, objs, ELEM_H)
-        local elem = {
-            Type="Keybind", _bg=bg, _draws=objs,
-            _x=cx+cw-100, _y=cy, _w=92, _h=ELEM_H,
-            _kbTxt=kbTxt, Key=key, Listening=false,
-            Callback=callback,
-        }
-        registerElemDesc(cat, elem)
-        return elem
-    end
-
-    -- ── COLOR PICKER
-    -- Layout:
-    --   Header row : [Label]  [Preview swatch]  [> button]
-    --   Panel (opens to the RIGHT of the window, floating):
-    --     Left  : hex color palette (10 cols × 8 rows of swatches)
-    --     Right : R/G/B +/- steppers + hex label + live preview
-    local function addColorPicker(cat, labelText, defaultColor, callback)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local rowH = ELEM_H
-        local color = defaultColor or Color3.fromRGB(255, 100, 100)
-        local objs = {}
-
-        -- ── Header row ──────────────────────────────────────────────────
-        local bg      = draw(makeRect(cx, cy, cw, rowH, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl     = draw(makeText(labelText, cx + 8, cy + 6, 12, Theme.TextSecondary, baseZ+6, false, true))
-        trackTheme("TextSecondary", lbl)
-        local preview = draw(makeRect(cx + cw - 54, cy + 4, 22, 22, color, baseZ+7, true))
-        local arrowBtn = draw(makeRect(cx + cw - 28, cy + 4, 22, 22, Theme.InputBg, baseZ+7, true))
-        trackTheme("InputBg", arrowBtn)
-        local arrowTxt = draw(makeText(">", cx + cw - 22, cy + 8, 12, Theme.AccentOn, baseZ+8, false, false))
-        trackAccent(arrowTxt)
-        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, preview)
-        table.insert(objs, arrowBtn) table.insert(objs, arrowTxt)
-
-        -- ── Panel geometry: opens to the RIGHT of the whole window ───────
-        -- panelX is right edge of the window + 4px gap
-        local panelX  = win.X + ww + 4
-        local panelY  = cy
-        local swatchSz = 16   -- each palette swatch cell
-        local swatchGap = 2
-        local palCols = 10
-        local palRows = 8
-        local palW    = palCols * (swatchSz + swatchGap) - swatchGap
-        local palH    = palRows * (swatchSz + swatchGap) - swatchGap
-        local rsAreaX = panelX + palW + 8
-        local rsAreaW = 80          -- width of the R/G/B stepper area
-        local panelW  = palW + 8 + rsAreaW + 8
-        local panelH  = palH + 8    -- a little padding top+bottom
-
-        -- panelObjs: panel-only objects — excluded from ScrollFrame clipping.
-        -- Their visibility is controlled exclusively by _cpOpen toggle logic.
-        local panelObjs = {}
-        -- panelObjOffsets: parallel table storing each panelObj's position
-        -- relative to (panelX, panelY) at build time. Used by the open logic
-        -- to SET absolute positions without accumulating repeated deltas.
-        local panelObjOffsets = {}
-        local function addPanelObj(o)
-            table.insert(panelObjs, o)
-            table.insert(objs, o)
-            -- Record relative offset from panel origin at the moment of construction
-            pcall(function()
-                table.insert(panelObjOffsets, {
-                    dx = o.Position.X - panelX,
-                    dy = o.Position.Y - panelY,
-                })
-            end)
-            return o
-        end
-
-        local panelBg = addPanelObj(draw(makeRect(panelX, panelY, panelW, panelH + 4, Theme.DropdownBg, baseZ+50, true)))
-        trackTheme("DropdownBg", panelBg)
-        panelBg.Visible = false
-        -- thin accent border around panel
-        local panelBorder = addPanelObj(draw(makeRect(panelX, panelY, panelW, panelH + 4, Theme.ElementBorder, baseZ+50, false)))
-        trackTheme("ElementBorder", panelBorder)
-        panelBorder.Filled = false panelBorder.Thickness = 1 panelBorder.Visible = false
-
-        -- ── Palette colors (flat hex table, same hue-ring layout as image) ──
-        local PALETTE = {
-            -- row 1: warm reds/oranges
-            "8B0000","B22222","CC2200","FF0000","FF4500","FF6347","FF7F50","FF8C00","FFA500","FFD700",
-            -- row 2: yellows/greens
-            "FFFF00","ADFF2F","7FFF00","00FF00","00FA9A","00FF7F","39FF14","00FF80","00FFAA","00FFCC",
-            -- row 3: cyans/teals
-            "00FFFF","00CED1","00BFFF","1E90FF","0000FF","0000CD","00008B","191970","483D8B","6A0DAD",
-            -- row 4: purples/pinks
-            "8B008B","9400D3","EE82EE","FF00FF","FF1493","FF69B4","FFB6C1","C71585","DB7093","FF007F",
-            -- row 5: earth tones
-            "A52A2A","8B4513","D2691E","CD853F","DEB887","F5DEB3","FFE4B5","FFDAB9","FAEBD7","FAF0E6",
-            -- row 6: blues/indigos
-            "4169E1","6495ED","87CEEB","ADD8E6","B0E0E6","5F9EA0","4682B4","708090","778899","B0C4DE",
-            -- row 7: greens
-            "006400","228B22","2E8B57","3CB371","66CDAA","8FBC8F","90EE90","98FB98","F0FFF0","E8F5E9",
-            -- row 8: grays/blacks/whites
-            "000000","1A1A1A","333333","555555","777777","999999","AAAAAA","CCCCCC","EEEEEE","FFFFFF",
-        }
-
-        local paletteSwatches = {}
-        for i, hexStr in ipairs(PALETTE) do
-            local row = math.floor((i-1) / palCols)
-            local col = (i-1) % palCols
-            local sx  = panelX + 4 + col * (swatchSz + swatchGap)
-            local sy  = panelY + 4 + row * (swatchSz + swatchGap)
-            local r2  = tonumber(hexStr:sub(1,2), 16) or 0
-            local g2  = tonumber(hexStr:sub(3,4), 16) or 0
-            local b2  = tonumber(hexStr:sub(5,6), 16) or 0
-            local sw  = addPanelObj(draw(makeRect(sx, sy, swatchSz, swatchSz, Color3.fromRGB(r2,g2,b2), baseZ+52, true)))
-            sw.Visible = false
-            table.insert(paletteSwatches, {_r=sw, _x=sx, _y=sy, _w=swatchSz, _h=swatchSz,
-                _color=Color3.fromRGB(r2,g2,b2)})
-        end
-
-        -- ── RGB sliders (right side of panel) ────────────────────────────
-        local function colorToHex(c)
-            return string.format("#%02X%02X%02X", math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
-        end
-
-        -- Layout: each channel row has a label, value text, and a drag slider track
-        -- Row height = 24px; 3 rows + hex/preview below
-        local chRowH   = 24
-        local slPad    = 4      -- left padding inside rs area
-        local lblW     = 12     -- "R"/"G"/"B" label width
-        local valW2    = 28     -- value "255" text width
-        local slTrackX = rsAreaX + slPad + lblW + valW2 + 4
-        local slTrackW = rsAreaW - slPad - lblW - valW2 - 4 - slPad
-        local knobW2   = 8
-
-        local channels   = {"R","G","B"}
-        local channelSliders = {}
-        local btnObjs = {}  -- kept empty; no +/- buttons any more
-
-        -- Channel colors for slider fills
-        local chFillColors = {
-            R = Color3.fromRGB(220, 60, 60),
-            G = Color3.fromRGB(60, 200, 60),
-            B = Color3.fromRGB(60, 100, 220),
-        }
-
-        local _rSlider = {_x=0,_y=0,_w=1,_h=1,_bg=nil,_fill=nil,_lbl=nil,_val=nil}
-        local _gSlider = {_x=0,_y=0,_w=1,_h=1,_bg=nil,_fill=nil,_lbl=nil,_val=nil}
-        local _bSlider = {_x=0,_y=0,_w=1,_h=1,_bg=nil,_fill=nil,_lbl=nil,_val=nil}
-
-        for ci, ch in ipairs(channels) do
-            local rowY = panelY + 4 + (ci-1) * chRowH
-
-            -- Channel label ("R" / "G" / "B")
-            local lbl2 = draw(makeText(ch, rsAreaX + slPad, rowY + 6, 11,
-                Theme.TextSecondary, baseZ+52, false, false))
-            lbl2.Visible = false
-            addPanelObj(lbl2)
-
-            -- Numeric value display
-            local initV = math.floor((ch=="R" and color.R or ch=="G" and color.G or color.B) * 255)
-            local valT  = draw(makeText(tostring(initV),
-                rsAreaX + slPad + lblW + 2, rowY + 6, 11,
-                Theme.TextPrimary, baseZ+52, false, false))
-            valT.Visible = false
-            addPanelObj(valT)
-
-            -- Slider track background
-            local trackBg2 = draw(makeRect(slTrackX, rowY + 8, slTrackW, 4,
-                Theme.SliderTrack, baseZ+52, true))
-            trackBg2.Visible = false
-            addPanelObj(trackBg2)
-
-            -- Slider fill (channel-colored)
-            local initPct  = initV / 255
-            local initFillW = math.max(1, math.floor(slTrackW * initPct))
-            local fillRect2 = draw(makeRect(slTrackX, rowY + 8, initFillW, 4,
-                chFillColors[ch], baseZ+53, true))
-            fillRect2.Visible = false
-            addPanelObj(fillRect2)
-
-            -- Knob
-            local knobX2 = slTrackX + initFillW - knobW2/2
-            local knobY2 = rowY + 3
-            local knob2  = draw(makeRect(knobX2, knobY2, knobW2, 14,
-                Theme.SliderKnob, baseZ+54, true))
-            knob2.Visible = false
-            addPanelObj(knob2)
-
-            -- Dummy _bg/_fill/_lbl/_val references expected by legacy reset code
-            local slInfo = {
-                _lbl=lbl2, _val=valT,
-                _bg=trackBg2, _fill=fillRect2,
-                _minBg=trackBg2, _minTx=lbl2,   -- legacy keys, harmless
-                _plusBg=trackBg2, _plusTx=valT,  -- legacy keys, harmless
-                _fillRect=fillRect2, _knob=knob2,
-                _trackX=slTrackX, _trackW=slTrackW,
-                _knobY=knobY2, _rowY=rowY,
-            }
-            channelSliders[ch] = slInfo
-
-            -- Register drag hit zone (the full row strip)
-            table.insert(btnObjs, {
-                _x=slTrackX, _y=rowY+2, _w=slTrackW, _h=16,
-                _ch=ch, _isSlider=true,
-                _fillRect=fillRect2, _knob=knob2,
-                _trackX=slTrackX, _trackW=slTrackW, _knobY=knobY2,
-            })
-
-            if ch=="R" then
-                _rSlider = {_bg=trackBg2,_fill=fillRect2,_lbl=lbl2,_val=valT,
-                    _x=slTrackX,_y=rowY,_w=slTrackW,_h=14}
-            elseif ch=="G" then
-                _gSlider = {_bg=trackBg2,_fill=fillRect2,_lbl=lbl2,_val=valT,
-                    _x=slTrackX,_y=rowY,_w=slTrackW,_h=14}
-            else
-                _bSlider = {_bg=trackBg2,_fill=fillRect2,_lbl=lbl2,_val=valT,
-                    _x=slTrackX,_y=rowY,_w=slTrackW,_h=14}
-            end
-        end
-
-        -- Hex label + live preview patch (below the 3 channel rows)
-        local hexLblY  = panelY + 4 + 3*chRowH + 4
-        local hexLabel = addPanelObj(draw(makeText(colorToHex(color), rsAreaX + slPad, hexLblY, 10,
-            Theme.TextSecondary, baseZ+52, false, false)))
-        hexLabel.Visible = false
-
-        local prevPatch = addPanelObj(draw(makeRect(rsAreaX + slPad, hexLblY + 14, rsAreaW - slPad*2, 14,
-            color, baseZ+52, true)))
-        prevPatch.Visible = false
-
-        registerElem(cat, objs, rowH)
-
-        -- refreshAll: always reads elem.Color (set by caller before invoking)
-        -- Uses a forward-ref table (_elemRef) so the closure can access elem after creation.
-        local _elemRef = {
-					Color = nil;
-				}
-				
-        local function refreshAll()
-            local c = _elemRef.Color or color
-            preview.Color   = c
-            prevPatch.Color = c
-            hexLabel.Text   = colorToHex(c)
-            local rv = math.floor(c.R*255)
-            local gv = math.floor(c.G*255)
-            local bv = math.floor(c.B*255)
-            local vals = {R=rv, G=gv, B=bv}
-            for _, ch2 in ipairs({"R","G","B"}) do
-                local s = channelSliders[ch2]
-                if s then
-                    s._val.Text = tostring(vals[ch2])
-                    local pct2 = vals[ch2] / 255
-                    local fw2  = math.max(1, math.floor(pct2 * s._trackW))
-                    s._fillRect.Size     = Vector2.new(fw2, 4)
-                    s._knob.Position     = Vector2.new(s._trackX + fw2 - knobW2/2, s._knobY)
-                end
-            end
-            if callback then pcall(callback, c) end
-        end
-
-        local elem = {
-            Type="ColorPicker", _bg=bg, _draws=objs,
-            _x=cx+cw-54, _y=cy, _w=54, _h=rowH,
-            _arrowX=cx+cw-28, _arrowY=cy+4, _arrowW=22, _arrowH=22,
-            _headerX=cx, _headerY=cy, _headerW=cw, _headerH=rowH,
-            _panelBg=panelBg, _panelBorder=panelBorder,
-            _panelX=panelX, _panelY=panelY, _panelW=panelW, _panelH=panelH+4,
-            _panelObjs=panelObjs,
-            _panelObjOffsets=panelObjOffsets,  -- relative offsets from panel origin at build time
-            _buildPanelX=panelX, _buildPanelY=panelY,  -- panel origin at build time (never changes)
-            _hueRects={}, _hueCursor=panelBorder,
-            _svRects={}, _svCursor=panelBorder,
-            _rSlider=_rSlider, _gSlider=_gSlider, _bSlider=_bSlider,
-            _hexLabel=hexLabel,
-            _preview=preview, _arrowTxt=arrowTxt,
-            _paletteSwatch=paletteSwatches,
-            _channelSliders=channelSliders,
-            _btnObjs=btnObjs,
-            _prevPatch=prevPatch,
-            _swatches={},
-            _cpOpen=false,
-            _cpDragCh=nil,   -- currently dragged channel ("R"/"G"/"B" or nil)
-            _cpDragHue=false, _cpDragR=false, _cpDragG=false, _cpDragB=false, _cpDragSV=false,
-            Color=color,
-            _cpHue=0, _cpSat=1, _cpVal=1,
-            _refreshSV=function() end, _refreshAll=refreshAll,
-            _rsW=rsAreaW, _rsH=14, _rsX=rsAreaX,
-            Callback=callback,
-        }
-        -- Store original swatch hit-test coords relative to panel origin
-        for _, sw in ipairs(paletteSwatches) do
-            sw._origDX = sw._x - panelX
-            sw._origDY = sw._y - panelY
-        end
-        -- Store original btn hit-test coords relative to panel origin
-        for _, btn in ipairs(btnObjs) do
-            btn._origDX = btn._x - panelX
-            btn._origDY = btn._y - panelY
-            if btn._trackX then btn._origTrackDX = btn._trackX - panelX end
-            if btn._knobY  then btn._origKnobDY  = btn._knobY  - panelY end
-        end
-        -- Store original channelSlider coords relative to panel origin
-        for _, s in pairs(channelSliders) do
-            if s._trackX then s._origTrackDX = s._trackX - panelX end
-            if s._knobY  then s._origKnobDY  = s._knobY  - panelY end
-            if s._rowY   then s._origRowDY   = s._rowY   - panelY end
-        end
-        -- Wire forward ref so refreshAll can read elem.Color
-        _elemRef.Color          = nil   -- will be kept in sync via elem.Color
-        _elemRef._channelSliders = channelSliders
-        -- Override _refreshAll with a closure that always reads elem.Color
-        elem._refreshAll = function()
-            _elemRef.Color = elem.Color
-            refreshAll()
-        end
-        registerElemDesc(cat, elem)
-        return elem
-    end
-
-    -- ── VALUE LABEL
-    local function addValueLabel(cat, labelText, defaultValue)
-        local cx  = contentX()
-        local cw  = contentW()
-        local cy  = contentCursorY(cat)
-        local objs = {}
-        local bg   = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
-        trackTheme("ElementBg", bg)
-        local lbl  = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
-        trackTheme("TextSecondary", lbl)
-        -- Reserve 100px on right for the value. A cover rect with same bg color hides overflow.
-        local valW   = 100
-        local valX   = cx + cw - valW - 6  -- left edge of value area
-        -- Bug fix #3: stable right edge anchor computed once from layout constants.
-        -- SetValue always positions text relative to this fixed point so it never drifts.
-        local valRightEdge = cx + cw - 8
-        local valCover = draw(makeRect(cx + cw - valW - 6, cy + 1, valW + 2, ELEM_H - 2, Theme.ElementBg, baseZ+6, true))
-        trackTheme("ElementBg", valCover)
-        local initStr = tostring(defaultValue or "")
-        local initX   = valRightEdge - math.min(#initStr * 7, valW)
-        local valTxt  = draw(makeText(initStr, initX, cy + ELEM_H/2 - 7, 13, Theme.AccentOn, baseZ+7, false, true))
-        trackAccent(valTxt)
-        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, valCover) table.insert(objs, valTxt)
-        registerElem(cat, objs, ELEM_H)
-        local elem = {
-            Type="ValueLabel", _bg=bg, _draws=objs,
-            _x=cx, _y=cy, _w=cw, _h=ELEM_H,
-            _valTxt=valTxt, _valCover=valCover, _valW=valW,
-            _valRightEdge=valRightEdge,  -- stable anchor, never changes
-            _labelTxt=lbl,
-            Value=defaultValue or "",
-            SetValue=function(self, v)
-                self.Value = v
-                local s = tostring(v)
-                self._valTxt.Text = s
-                -- Always anchor from the fixed right edge, not the current
-                -- text X (which was the source of the rightward drift bug).
-                local estimatedW = math.min(#s * 7, self._valW)
-                self._valTxt.Position = Vector2.new(
-                    self._valRightEdge - estimatedW,
-                    self._valTxt.Position.Y
-                )
-            end,
-        }
-        registerElemDesc(cat, elem)
-        return elem
-    end
-
-    -- ── SCROLLING FRAME
-    -- visH  : visible height of the frame (px). innerH auto-grows as widgets are added.
-    -- Supports both text rows (AddItem) and full UI elements (AddWidget).
-    -- Scrolling is controlled by dragging the scrollbar thumb or content drag.
-    -- Each frame in the main loop re-positions and clips all child objects.
-    local function addScrollFrame(cat, innerH, callback, customVisH)
+  -- ── SCROLLING FRAME; visH  : visible height of the frame (px). innerH auto-grows as widgets are added. Supports both text rows (AddItem) and full UI elements (AddWidget). Scrolling is controlled by dragging the scrollbar thumb or content drag. Each frame in the main loop re-positions and clips all child objects.
+  local function addScrollFrame(cat, innerH, callback, customVisH)
         local cx   = contentX()
         local cw   = contentW()
         local cy   = contentCursorY(cat)
         local visH = customVisH or math.min(innerH, 80)
         local objs = {}
-        local bg   = draw(makeRect(cx, cy, cw, visH, Theme.InputBg, baseZ+5, true))
-        trackTheme("InputBg", bg)
+        local bg   = draw(createRectangle(cx, cy, cw, visH, Theme.InputBg, baseZ+5, true));trackTheme("InputBg", bg)
         -- clip border
-        local border = draw(makeRect(cx, cy, cw, visH, Theme.ElementBorder, baseZ+5, false))
-        trackTheme("ElementBorder", border)
+        local border = draw(createRectangle(cx, cy, cw, visH, Theme.ElementBorder, baseZ+5, false));trackTheme("ElementBorder", border)
         border.Filled = false
         border.Thickness = 1
         -- scrollbar track
         local sbX     = cx + cw - 8
-        local sbTrack = draw(makeRect(sbX, cy, 6, visH, Theme.ScrollBar, baseZ+6, true))
-        trackTheme("ScrollBar", sbTrack)
+        local sbTrack = draw(createRectangle(sbX, cy, 6, visH, Theme.ScrollBar, baseZ+6, true));trackTheme("ScrollBar", sbTrack)
         -- thumb (height proportional to content)
         local thumbH = math.max(20, math.floor(visH * visH / math.max(innerH, 1)))
-        local thumb  = draw(makeRect(sbX, cy, 6, thumbH, Theme.ScrollThumb, baseZ+7, true))
-        trackAccent(thumb)
-        table.insert(objs, bg) table.insert(objs, border)
-        table.insert(objs, sbTrack) table.insert(objs, thumb)
+        local thumb  = draw(createRectangle(sbX, cy, 6, thumbH, Theme.ScrollThumb, baseZ+7, true));trackAccent(thumb)
+        table.insert(objs, bg);table.insert(objs, border)
+        table.insert(objs, sbTrack);table.insert(objs, thumb)
         registerElem(cat, objs, visH)
 
         -- BUG 2 FIX: content width leaves room for the scrollbar so widgets never overlap it.
@@ -1415,33 +1275,29 @@ function MatchaUI.CreateWindow(opts)
         local innerCW = cw - contentPadRight
 
         local elem = {
-            Type="ScrollFrame", _bg=bg, _draws=objs,
-            _x=cx, _y=cy, _w=cw, _h=visH,
-            _sbX=sbX,
-            _thumb=thumb, _thumbH=thumbH,
-            _innerH=innerH, _scrollY=0,
-            _thumbDragging=false, _thumbDragOffY=0,
-            _contentDragging=false, _contentDragStartY=0, _contentDragStartScroll=0,
-            _items={},   -- { _txt=DrawObj, _relY=number }  (text rows)
-            _widgets={}, -- { _objs={DrawObj,...}, _relY=number, _h=number }  (UI widgets)
-            _itemH=18,
-            Callback=callback,
+            Type = "ScrollFrame", _bg = bg, _draws = objs,
+            _x = cx, _y = cy, _w = cw, _h = visH,
+            _sbX = sbX,
+            _thumb = thumb, _thumbH = thumbH,
+            _innerH = innerH, _scrollY = 0,
+            _thumbDragging = false, _thumbDragOffY = 0,
+            _contentDragging = false, _contentDragStartY = 0, _contentDragStartScroll = 0,
+            _items = {},   -- { _txt=DrawObj, _relY=number }
+            _widgets = {}, -- { _objs={DrawObj,...}, _relY=number, _h=number }
+            _itemH = 18,
+            Callback = callback,
         }
 
-        -- AddItem: add a labelled text row into the scroll frame (legacy API).
         function elem:AddItem(text)
             local rowIdx = #self._items
-            local relY   = rowIdx * self._itemH + 4
-            local absY   = self._y + relY
-            -- BUG 2 FIX: use innerCW (captured from outer scope) so text never overlaps the scrollbar.
-            local _ = innerCW  -- referenced for closure
-            local txt    = draw(makeText(
-                text, self._x + 6, absY, 12, Theme.TextPrimary, baseZ+8, false, false
-            ))
+            local relY = rowIdx * self._itemH + 4
+            local absY = self._y + relY
+            local _ = innerCW
+            local txt = draw(createText(text, self._x + 6, absY, 12, Theme.TextPrimary, baseZ+8, false, false))
             txt.Visible = (absY >= self._y) and (absY + self._itemH <= self._y + self._h)
-            table.insert(self._items, {_txt=txt, _relY=relY})
+            table.insert(self._items, {_txt = txt, _relY = relY})
             table.insert(objs, txt)
-            -- Grow innerH to fit all items
+
             local neededH = (#self._items) * self._itemH + 8
             if neededH > self._innerH then
                 self._innerH = neededH
@@ -1449,52 +1305,26 @@ function MatchaUI.CreateWindow(opts)
                 self._thumbH = newThH
                 self._thumb.Size = Vector2.new(6, newThH)
             end
+
             if win.ActiveCat ~= cat then txt.Visible = false end
             return txt
         end
 
-        -- AddWidget: embed a full UI element (Button, Toggle, Checkbox, Slider, Dropdown…)
-        -- inside the scroll frame. The element is built normally via the cat builders, but
-        -- its draw objects are detached from the category layout and owned by the frame.
-        -- @param builder   function()  — a zero-argument closure that calls the add* function
-        --                                and returns the element descriptor.
-        -- @returns the element descriptor (same as calling the builder directly).
-        --
-        -- Usage:
-        --   scrollFrame:AddWidget(function()
-        --       return Window.AddButton(catFoo, "My Button", callback)
-        --   end)
-        --
-        -- The widget is positioned relative to the scroll frame's content area and will
-        -- scroll with the frame. Its height is taken from elem._h on the descriptor.
         function elem:AddWidget(builder)
-            -- Temporarily adjust the category cursor so the element lands inside us.
-            -- We compute the desired relY (distance from top of scroll frame content).
             local neededInnerH = 0
-            for _, w in ipairs(self._widgets) do
-                neededInnerH = neededInnerH + w._h + 2
-            end
-            for _, it in ipairs(self._items) do
-                neededInnerH = neededInnerH + self._itemH
-            end
+            for _, w in ipairs(self._widgets) do neededInnerH = neededInnerH + w._h + 2 end
+            for _, it in ipairs(self._items) do neededInnerH = neededInnerH + self._itemH end
             local relY = neededInnerH + 4
 
-            -- Build the element. It will be placed at the current cat cursor,
-            -- which is (cy + relY - scrollY). We must compensate for the cursor offset.
             local builtElem = builder()
             if not builtElem then return nil end
 
             local wh = builtElem._h or ELEM_H
-            -- Move all of this element's draw objects into the frame's ownership
-            -- and shift them to relY inside the frame.
             local absY = self._y + relY - self._scrollY
             local dyFix = absY - (builtElem._y or absY)
 
-            -- BUG 2 FIX: shrink widget width to innerCW (content area excluding scrollbar).
-            -- This prevents buttons, sliders, etc. from visually overlapping the scrollbar.
             local dxW = innerCW - (builtElem._w or cw)
             if dxW < 0 then
-                -- Only shrink, never expand. Apply to the element's own _bg draw object.
                 if builtElem._bg then
                     pcall(function()
                         local s = builtElem._bg.Size
@@ -1504,106 +1334,67 @@ function MatchaUI.CreateWindow(opts)
                 builtElem._w = (builtElem._w or cw) + dxW
             end
 
-            -- Mark this element as living inside a ScrollFrame so the main interaction
-            -- loop uses the frame's visibility, not elem._bg.Visible, as the gate.
             builtElem._inScrollFrame = true
 
-            -- Build a set of objects that must never be force-shown/hidden by the clipping
-            -- pass. This includes:
-            --   • ColorPicker panel objects (their visibility is controlled by _cpOpen).
-            --   • Dropdown item objects (their visibility is controlled by _isOpen).
-            -- BUG 3 FIX: Dropdown items must be in this set so the clipping loop never
-            -- makes them visible while their parent is closed.
             local panelObjSet = {}
             if builtElem._panelObjs then
-                for _, po in ipairs(builtElem._panelObjs) do
-                    panelObjSet[po] = true
-                end
+                for _, po in ipairs(builtElem._panelObjs) do panelObjSet[po] = true end
             end
-            -- Dropdown popup items
             if builtElem.Type == "Dropdown" and builtElem._itemObjs then
                 for _, item in ipairs(builtElem._itemObjs) do
-                    if item._bg  then panelObjSet[item._bg]  = true end
+                    if item._bg then panelObjSet[item._bg] = true end
                     if item._txt then panelObjSet[item._txt] = true end
                 end
             end
 
-            -- Collect the draw objects from the last cat._elemObjs entry (the one just added)
             local lastObjs = cat._elemObjs[#cat._elemObjs]
             local widgetObjs = {}
             if lastObjs then
                 for _, o in ipairs(lastObjs) do
                     table.insert(widgetObjs, o)
                     table.insert(objs, o)
-                    if panelObjSet[o] then
-                        -- Panel/popup objects float outside the frame — never shift, never clip.
-                        -- Leave them at Visible=false; open/close toggle controls them.
-                    else
-                        -- shift vertically to align inside the scroll frame
-                        pcall(function() o.Position = o.Position + Vector2.new(0, dyFix) end)
-                        -- start clipped
+
+                    if not panelObjSet[o] then
+                        pcall(function()
+                            o.Position = o.Position + Vector2.new(0, dyFix)
+                        end)
                         local oAbsY = o.Position.Y
                         o.Visible = (oAbsY >= self._y) and (oAbsY < self._y + self._h)
                     end
                 end
-                -- Remove from cat layout management (we own it now)
                 table.remove(cat._elemObjs, #cat._elemObjs)
             end
 
-            -- Patch element descriptor Y coordinates to match actual position
             if builtElem._y then builtElem._y = builtElem._y + dyFix end
             if builtElem._ty then builtElem._ty = builtElem._ty + dyFix end
             if builtElem._trackY then builtElem._trackY = builtElem._trackY + dyFix end
 
-            -- BUG 4 FIX: also patch Dropdown item hit-test _y to match the shifted position.
-            -- Without this, clicking items fires at wrong Y coords that never match the mouse.
             if builtElem.Type == "Dropdown" and builtElem._itemObjs then
                 for _, item in ipairs(builtElem._itemObjs) do
                     if item._y then item._y = item._y + dyFix end
                 end
             end
 
-            -- For ColorPicker inside ScrollFrame: store the BASE Y of the header row
-            -- (after dyFix is applied) so the scroll loop can SET (not accumulate) absolute
-            -- hit-test coords every frame. Accumulating dy each frame causes unbounded drift.
             if builtElem.Type == "ColorPicker" then
-                -- _headerY has already been patched above via the generic _y patch? No —
-                -- _headerY is a separate field. Patch it now and store as base.
                 if builtElem._headerY then
                     builtElem._headerY = builtElem._headerY + dyFix
                 end
-                -- _origHeaderY: the Y the header sits at when scrollY==0 and relY is at top.
-                -- We store it AFTER dyFix so it matches the frame-relative position.
-                builtElem._origHeaderY = builtElem._headerY  -- absolute Y when scrollY=0
+                builtElem._origHeaderY = builtElem._headerY
 
-                -- Also patch btnObjs and channelSliders Y by dyFix.
-                -- BUG FIX: Widget ColorPicker Slider Offset
-                -- _orig* offsets (e.g. _origKnobDY, _origDY, _origTrackDX) are relative to
-                -- panelY AT BUILD TIME. When the panel opens, the logic sets absolute positions
-                -- using:  newPanelY + _origKnobDY
-                -- where   newPanelY = bgPos.Y  (the header's current screen Y).
-                -- Since AddWidget already shifts elem._bg by dyFix, bgPos.Y = cy + dyFix,
-                -- which correctly captures the widget's offset from the frame top.
-                -- Therefore _orig* values must NOT be modified by dyFix here — doing so would
-                -- cause a double-offset: (cy + dyFix) + (origOffset + dyFix) = correct + dyFix.
-                -- The same logic applies to all _origDY, _origKnobDY, _origTrackDX, _origRowDY.
-                -- We still patch the runtime _y/_knobY/_rowY for hit-testing before first open.
                 for _, btn in ipairs(builtElem._btnObjs or {}) do
-                    if btn._y      then btn._y      = btn._y      + dyFix end
-                    if btn._knobY  then btn._knobY  = btn._knobY  + dyFix end
-                    -- _origDY / _origKnobDY / _origTrackDX intentionally NOT patched — see above.
+                    if btn._y then btn._y = btn._y + dyFix end
+                    if btn._knobY then btn._knobY = btn._knobY + dyFix end
                 end
+
                 local cs = builtElem._channelSliders or {}
                 for _, s in pairs(cs) do
-                    if s._knobY      then s._knobY      = s._knobY      + dyFix end
-                    if s._rowY       then s._rowY       = s._rowY       + dyFix end
-                    -- _origKnobDY / _origRowDY intentionally NOT patched — see above.
+                    if s._knobY then s._knobY = s._knobY + dyFix end
+                    if s._rowY then s._rowY = s._rowY + dyFix end
                 end
             end
 
-            table.insert(self._widgets, {_objs=widgetObjs, _relY=relY, _h=wh, _elem=builtElem, _panelObjSet=panelObjSet})
+            table.insert(self._widgets, {_objs = widgetObjs, _relY = relY, _h = wh, _elem = builtElem, _panelObjSet = panelObjSet})
 
-            -- Grow scroll content height
             local totalH = relY + wh + 8
             if totalH > self._innerH then
                 self._innerH = totalH
@@ -1615,79 +1406,65 @@ function MatchaUI.CreateWindow(opts)
             if win.ActiveCat ~= cat then
                 for _, o in ipairs(widgetObjs) do pcall(function() o.Visible = false end) end
             end
+
             return builtElem
         end
 
         registerElemDesc(cat, elem)
         return elem
-    end
+  end
 
-    -- ── TOOLTIP (attached to element, shown on hover)
-    local function addTooltip(elem, tipText)
-        local ttBg  = newDraw("Square")
-        ttBg.Size   = Vector2.new(#tipText * 7 + 12, 20)
-        ttBg.Color  = Theme.TooltipBg
-        ttBg.ZIndex = baseZ + 90
-        ttBg.Filled = true
-        ttBg.Transparency = 1
-        ttBg.Visible = false
-        local ttTxt = newDraw("Text")
-        ttTxt.Text  = tipText
-        ttTxt.Size  = 12
-        ttTxt.Color = Theme.TextPrimary
-        ttTxt.ZIndex = baseZ + 91
-        ttTxt.Center = false
-        ttTxt.Outline = true
-        ttTxt.Font  = Drawing.Fonts.Monospace
-        ttTxt.Transparency = 1
-        ttTxt.Visible = false
-        local tip = {_bg=ttBg, _txt=ttTxt, _elem=elem, Text=tipText}
+   -- ── TOOLTIP (attached to element, shown on hover)
+  local function addTooltip(elem, tipText)
+        local ttBg = newDraw("Square");ttBg.Size = Vector2.new(#tipText * 7 + 12, 20);ttBg.Color = Theme.TooltipBg;ttBg.ZIndex = baseZ + 90;ttBg.Filled = true;ttBg.Transparency = 1;ttBg.Visible = false
+        local ttTxt = newDraw("Text");ttTxt.Text = tipText;ttTxt.Size = 12;ttTxt.Color = Theme.TextPrimary;ttTxt.ZIndex = baseZ + 91;ttTxt.Center = false;ttTxt.Outline = true;ttTxt.Font = Drawing.Fonts.Monospace;ttTxt.Transparency = 1;ttTxt.Visible = false
+        local tip = {_bg = ttBg, _txt = ttTxt, _elem = elem, Text = tipText}
         table.insert(_tooltips, tip)
         return tip
-    end
+  end
 
-    -- ─────────────────────────────
-    -- Expose public API on window
-    -- ─────────────────────────────
-    win.AddCategory    = addCategory
-    win.AddSection     = addSection
-    win.AddButton      = addButton
-    win.AddToggle      = addToggle
-    win.AddSlider      = addSlider
-    win.AddDropdown    = addDropdown
-    win.AddTextInput   = addTextInput
-    win.AddCheckbox    = addCheckbox
-    win.AddKeybind     = addKeybind
-    win.AddColorPicker = addColorPicker
-    win.AddValueLabel  = addValueLabel
-    win.AddScrollFrame = addScrollFrame
-    win.AddTooltip     = addTooltip
-    win.AddConfigPreset = function(opts)
-        return MatchaUI.AddConfigPreset(win, opts)
-    end
-    win.Reposition     = reposition
-    win.SetVisible     = setWinVisible
-    win.Minimize       = minimize
-    win._minBtn  = minBtn
-    win._minBtnX = wx + ww - 52
-    win._minBtnY = wy + 6
-    win._minBtnW = 18
-    win._minBtnH = 16
-    win._closeBtn  = closeBtn
-    win._closeBtnX = wx + ww - 26
-    win._closeBtnY = wy + 6
-    win._closeBtnW = 18
-    win._closeBtnH = 16
-    win._topBarH   = TOPBAR_H
-    win._activateCategory = activateCategory
 
-    table.insert(_windows, win)
-    return win
+  -- Expose public API on window
+
+  win.AddCategory    = addCategory
+  win.AddSection     = addSection
+  win.AddButton      = addButton
+  win.AddToggle      = addToggle
+  win.AddSlider      = addSlider
+  win.AddDropdown    = addDropdown
+  win.AddTextInput   = addTextInput
+  win.AddCheckbox    = addCheckbox
+  win.AddKeybind     = addKeybind
+  win.AddColorPicker = addColorPicker
+  win.AddValueLabel  = addValueLabel
+  win.AddScrollFrame = addScrollFrame
+  win.AddTooltip     = addTooltip
+  win.AddConfigPreset = function(opts)
+    return MatchaUI.AddConfigPreset(win, opts)
+  end
+
+  win.Reposition     = reposition
+  win.SetVisible     = setWinVisible
+  win.Minimize       = minimize
+  win._minBtn  = minBtn
+  win._minBtnX = wx + ww - 52
+  win._minBtnY = wy + 6
+  win._minBtnW = 18
+  win._minBtnH = 16
+  win._closeBtn  = closeBtn
+  win._closeBtnX = wx + ww - 26
+  win._closeBtnY = wy + 6
+  win._closeBtnW = 18
+  win._closeBtnH = 16
+  win._topBarH   = TOPBAR_H
+  win._activateCategory = activateCategory
+
+  table.insert(_windows, win)
+  return win
 end
 
--- ─────────────────────────────────────────────────────────────
+
 -- NOTIFICATION SYSTEM
--- ─────────────────────────────────────────────────────────────
 local NOTIF_W       = 240
 local NOTIF_PAD     = 6
 local NOTIF_DUR     = 4   -- seconds
@@ -1699,265 +1476,172 @@ local NOTIF_CHAR_W  = 7
 local NOTIF_START_X = 50
 local NOTIF_START_Y = 150
 
--- Word-wrap a string to fit within maxChars per line.
--- Returns a table of line strings and the total line count.
-local function _wrapText(text, maxChars)
-    local lines = {}
-    local words = {}
-    for w in (text .. " "):gmatch("([^ ]*) ") do
-        table.insert(words, w)
+
+local function _wrapText(text, maxChars) -- Word-wrap a string to fit within maxChars per line. Returns a table of line strings and the total line count.
+  local lines = {}
+  local words = {}
+
+  for w in (text .. " "):gmatch("([^ ]*) ") do
+    table.insert(words, w)
+  end
+
+  local line = ""
+
+  for _, w in ipairs(words) do
+    local candidate = line == "" and w or (line .. " " .. w)
+
+    if #candidate <= maxChars then
+      line = candidate
+    else
+      if line ~= "" then
+        table.insert(lines, line)
+      end
+
+      -- If the single word itself exceeds maxChars, hard-break it
+      while #w > maxChars do
+        table.insert(lines, w:sub(1, maxChars))
+        w = w:sub(maxChars + 1)
+      end
+
+      line = w
     end
-    local line = ""
-    for _, w in ipairs(words) do
-        local candidate = line == "" and w or (line .. " " .. w)
-        if #candidate <= maxChars then
-            line = candidate
-        else
-            if line ~= "" then
-                table.insert(lines, line)
-            end
-            -- If the single word itself exceeds maxChars, hard-break it
-            while #w > maxChars do
-                table.insert(lines, w:sub(1, maxChars))
-                w = w:sub(maxChars + 1)
-            end
-            line = w
-        end
-    end
-    if line ~= "" then table.insert(lines, line) end
-    if #lines == 0 then lines = {""} end
-    return lines
+  end
+
+  if line ~= "" then table.insert(lines, line); end
+  if #lines == 0 then lines = { "" }; end
+  return lines
 end
 
 local function _layoutNotifs()
-    local by = NOTIF_START_Y
-    for i = 1, #_notifs do
-        local n = _notifs[i]
-        n._bg.Position    = Vector2.new(NOTIF_START_X, by)
-        n._title.Position = Vector2.new(NOTIF_START_X + 8, by + 6)
-        -- Reposition each wrapped message line
-        for li, lObj in ipairs(n._msgLines) do
-            lObj.Position = Vector2.new(NOTIF_START_X + 8, by + 22 + (li - 1) * 14)
-        end
-        n._bar.Position   = Vector2.new(NOTIF_START_X, by + n._h - 4)
-        by = by + n._h + NOTIF_PAD
+  local by = NOTIF_START_Y
+
+  for i = 1, #_notifs do
+    local n = _notifs[i]
+
+    n._bg.Position = Vector2.new(NOTIF_START_X, by)
+    n._title.Position = Vector2.new(NOTIF_START_X + 8, by + 6)
+
+    -- Reposition each wrapped message line
+    for li, lObj in ipairs(n._msgLines) do
+      lObj.Position = Vector2.new(NOTIF_START_X + 8, by + 22 + (li - 1) * 14)
     end
+
+    n._bar.Position = Vector2.new(NOTIF_START_X, by + n._h - 4)
+    by = by + n._h + NOTIF_PAD
+  end
 end
 
 function MatchaUI.Notify(title, message, duration)
-    local nx  = NOTIF_START_X
-    local ny  = NOTIF_START_Y
-    -- Stack below existing notifications (actual Y set by _layoutNotifs)
-    local dur = duration or NOTIF_DUR
+  local nx = NOTIF_START_X
+  local ny = NOTIF_START_Y
 
-    -- Pre-calculate wrapped lines so we know how tall the notification must be
-    local maxChars = math.floor(NOTIF_INNER_W / NOTIF_CHAR_W)
-    local msgLines = _wrapText(message or "", maxChars)
-    -- Height: 6 (top pad) + 13 (title) + 3 (gap) + lines*14 + 6 (bottom pad) + 4 (bar)
-    local NOTIF_H = 6 + 13 + 3 + (#msgLines * 14) + 6 + 4
+  -- Stack below existing notifications (actual Y set by _layoutNotifs)
+  local dur = duration or NOTIF_DUR
 
-    local bg   = newDraw("Square")
-    bg.Position    = Vector2.new(nx, ny)
-    bg.Size        = Vector2.new(NOTIF_W, NOTIF_H)
-    bg.Color       = Theme.NotifBg
-    bg.Filled      = true
-    bg.ZIndex      = 300
-    bg.Transparency = 1
-    bg.Visible     = true
+  -- Pre-calculate wrapped lines so we know how tall the notification must be
+  local maxChars = math.floor(NOTIF_INNER_W / NOTIF_CHAR_W)
+  local msgLines = _wrapText(message or "", maxChars)
 
-    local tTitle = newDraw("Text")
-    tTitle.Text        = title or "Notice"
-    tTitle.Position    = Vector2.new(nx+8, ny+6)
-    tTitle.Size        = 13
-    tTitle.Color       = Theme.AccentOn
-    tTitle.ZIndex      = 302
-    tTitle.Outline     = true
-    tTitle.Font        = Drawing.Fonts.Monospace
-    tTitle.Transparency = 1
-    tTitle.Visible     = true
+  -- Height: 6 (top pad) + 13 (title) + 3 (gap) + lines*14 + 6 (bottom pad) + 4 (bar)
+  local NOTIF_H = 6 + 13 + 3 + (#msgLines * 14) + 6 + 4
 
-    -- Create one Drawing.Text object per wrapped line
-    local tMsgObjs = {}
-    for li, lineStr in ipairs(msgLines) do
-        local lObj = newDraw("Text")
-        lObj.Text         = lineStr
-        lObj.Position     = Vector2.new(nx+8, ny+22 + (li-1)*14)
-        lObj.Size         = 12
-        lObj.Color        = Theme.TextPrimary
-        lObj.ZIndex       = 302
-        lObj.Outline      = true
-        lObj.Font         = Drawing.Fonts.Monospace
-        lObj.Transparency = 1
-        lObj.Visible      = true
-        table.insert(tMsgObjs, lObj)
-    end
+  local bg = newDraw("Square")
+  bg.Position = Vector2.new(nx, ny)
+  bg.Size = Vector2.new(NOTIF_W, NOTIF_H)
+  bg.Color = Theme.NotifBg
+  bg.Filled = true
+  bg.ZIndex = 300
+  bg.Transparency = 1
+  bg.Visible = true
 
-    -- Horizontal progress bar (time remaining indicator)
-    local bar = newDraw("Square")
-    bar.Position   = Vector2.new(nx, ny + NOTIF_H - 4)
-    bar.Size       = Vector2.new(NOTIF_W, 4)
-    bar.Color      = Theme.AccentOn
-    bar.Filled     = true
-    bar.ZIndex     = 303
-    bar.Transparency = 1
-    bar.Visible    = true
+  local tTitle = newDraw("Text")
+  tTitle.Text = title or "Notice"
+  tTitle.Position = Vector2.new(nx + 8, ny + 6)
+  tTitle.Size = 13
+  tTitle.Color = Theme.AccentOn
+  tTitle.ZIndex = 302
+  tTitle.Outline = true
+  tTitle.Font = Drawing.Fonts.Monospace
+  tTitle.Transparency = 1
+  tTitle.Visible = true
 
-    local notif = {
-        _bg=bg, _title=tTitle, _msgLines=tMsgObjs, _bar=bar,
-        _timer=0, _duration=dur, _done=false, _h=NOTIF_H,
-    }
-    table.insert(_notifs, notif)
-    _layoutNotifs()
-    return notif
+  -- Create one Drawing.Text object per wrapped line
+  local tMsgObjs = {}
+
+  for li, lineStr in ipairs(msgLines) do
+    local lObj = newDraw("Text")
+    lObj.Text = lineStr
+    lObj.Position = Vector2.new(nx + 8, ny + 22 + (li - 1) * 14)
+    lObj.Size = 12
+    lObj.Color = Theme.TextPrimary
+    lObj.ZIndex = 302
+    lObj.Outline = true
+    lObj.Font = Drawing.Fonts.Monospace
+    lObj.Transparency = 1
+    lObj.Visible = true
+    table.insert(tMsgObjs, lObj)
+  end
+
+  -- Horizontal progress bar (time remaining indicator)
+  local bar = newDraw("Square")
+  bar.Position = Vector2.new(nx, ny + NOTIF_H - 4)
+  bar.Size = Vector2.new(NOTIF_W, 4)
+  bar.Color = Theme.AccentOn
+  bar.Filled = true
+  bar.ZIndex = 303
+  bar.Transparency = 1
+  bar.Visible = true
+
+  local notif = {
+    _bg = bg,
+    _title = tTitle,
+    _msgLines = tMsgObjs,
+    _bar = bar,
+    _timer = 0,
+    _duration = dur,
+    _done = false,
+    _h = NOTIF_H,
+  }
+
+  table.insert(_notifs, notif)
+  _layoutNotifs()
+  return notif
 end
 
--- ─────────────────────────────────────────────────────────────
--- DEFAULT BUILT-IN PRESETS
--- Used by AddConfigPreset when no presets table is supplied.
--- ─────────────────────────────────────────────────────────────
-local DEFAULT_PRESETS = {
-    ["Default (Lime)"] = {
-        accent        = Color3.fromRGB(57, 255, 20),
-        Background    = Color3.fromHex("#0A0A0A"),
-        TopBar        = Color3.fromHex("#111111"),
-        LeftBar       = Color3.fromHex("#141414"),
-        CategoryHover = Color3.fromHex("#1F1F1F"),
-        CategoryText  = Color3.fromHex("#FFFFFF"),
-        ContentBg     = Color3.fromHex("#0A0A0A"),
-        ElementBg     = Color3.fromHex("#141414"),
-        ElementBorder = Color3.fromHex("#2A2A2A"),
-        AccentOff     = Color3.fromHex("#2A2A2A"),
-        TextPrimary   = Color3.fromHex("#FFFFFF"),
-        TextSecondary = Color3.fromHex("#AAAAAA"),
-        TextDisabled  = Color3.fromHex("#555555"),
-        SliderTrack   = Color3.fromHex("#2A2A2A"),
-        SliderKnob    = Color3.fromHex("#FFFFFF"),
-        DropdownBg    = Color3.fromHex("#111111"),
-        DropdownItem  = Color3.fromHex("#0A0A0A"),
-        DropdownHover = Color3.fromHex("#1F1F1F"),
-        InputBg       = Color3.fromHex("#0D0D0D"),
-        TooltipBg     = Color3.fromHex("#050505"),
-        NotifBg       = Color3.fromHex("#111111"),
-        ScrollBar     = Color3.fromHex("#1A1A1A"),
-        TitleText     = Color3.fromHex("#FFFFFF"),
-        CloseBtn      = Color3.fromHex("#CC2200"),
-        MinimizeBtn   = Color3.fromHex("#444444"),
-        SectionHeader = Color3.fromHex("#1A1A1A"),
-    },
-    ["Crimson"] = {
-        accent        = Color3.fromRGB(220, 40, 60),
-        Background    = Color3.fromHex("#0D0005"),
-        TopBar        = Color3.fromHex("#1A000A"),
-        LeftBar       = Color3.fromHex("#200010"),
-        CategoryHover = Color3.fromHex("#30001A"),
-        CategoryText  = Color3.fromHex("#FFD0D8"),
-        ContentBg     = Color3.fromHex("#0D0005"),
-        ElementBg     = Color3.fromHex("#1A000A"),
-        ElementBorder = Color3.fromHex("#440020"),
-        AccentOff     = Color3.fromHex("#440020"),
-        TextPrimary   = Color3.fromHex("#FFE8EC"),
-        TextSecondary = Color3.fromHex("#CC8899"),
-        TextDisabled  = Color3.fromHex("#663344"),
-        SliderTrack   = Color3.fromHex("#440020"),
-        SliderKnob    = Color3.fromHex("#FFE8EC"),
-        DropdownBg    = Color3.fromHex("#1A000A"),
-        DropdownItem  = Color3.fromHex("#0D0005"),
-        DropdownHover = Color3.fromHex("#30001A"),
-        InputBg       = Color3.fromHex("#110008"),
-        TooltipBg     = Color3.fromHex("#080003"),
-        NotifBg       = Color3.fromHex("#1A000A"),
-        ScrollBar     = Color3.fromHex("#250010"),
-        TitleText     = Color3.fromHex("#FFE8EC"),
-        CloseBtn      = Color3.fromHex("#AA0010"),
-        MinimizeBtn   = Color3.fromHex("#550022"),
-        SectionHeader = Color3.fromHex("#250010"),
-    },
-    ["Ocean"] = {
-        accent        = Color3.fromRGB(0, 180, 255),
-        Background    = Color3.fromHex("#030D12"),
-        TopBar        = Color3.fromHex("#061520"),
-        LeftBar       = Color3.fromHex("#081C28"),
-        CategoryHover = Color3.fromHex("#0E2A38"),
-        CategoryText  = Color3.fromHex("#C8EEFF"),
-        ContentBg     = Color3.fromHex("#030D12"),
-        ElementBg     = Color3.fromHex("#061520"),
-        ElementBorder = Color3.fromHex("#0A3048"),
-        AccentOff     = Color3.fromHex("#0A3048"),
-        TextPrimary   = Color3.fromHex("#E0F6FF"),
-        TextSecondary = Color3.fromHex("#7ABFDD"),
-        TextDisabled  = Color3.fromHex("#2A6680"),
-        SliderTrack   = Color3.fromHex("#0A3048"),
-        SliderKnob    = Color3.fromHex("#E0F6FF"),
-        DropdownBg    = Color3.fromHex("#061520"),
-        DropdownItem  = Color3.fromHex("#030D12"),
-        DropdownHover = Color3.fromHex("#0E2A38"),
-        InputBg       = Color3.fromHex("#04101A"),
-        TooltipBg     = Color3.fromHex("#020809"),
-        NotifBg       = Color3.fromHex("#061520"),
-        ScrollBar     = Color3.fromHex("#0A1E2A"),
-        TitleText     = Color3.fromHex("#E0F6FF"),
-        CloseBtn      = Color3.fromHex("#CC2200"),
-        MinimizeBtn   = Color3.fromHex("#1A4A60"),
-        SectionHeader = Color3.fromHex("#0A1E2A"),
-    },
-    ["Sunset"] = {
-        accent        = Color3.fromRGB(255, 120, 0),
-        Background    = Color3.fromHex("#0D0500"),
-        TopBar        = Color3.fromHex("#1A0A00"),
-        LeftBar       = Color3.fromHex("#221000"),
-        CategoryHover = Color3.fromHex("#331800"),
-        CategoryText  = Color3.fromHex("#FFE8CC"),
-        ContentBg     = Color3.fromHex("#0D0500"),
-        ElementBg     = Color3.fromHex("#1A0A00"),
-        ElementBorder = Color3.fromHex("#442200"),
-        AccentOff     = Color3.fromHex("#442200"),
-        TextPrimary   = Color3.fromHex("#FFF0E0"),
-        TextSecondary = Color3.fromHex("#CC9966"),
-        TextDisabled  = Color3.fromHex("#664422"),
-        SliderTrack   = Color3.fromHex("#442200"),
-        SliderKnob    = Color3.fromHex("#FFF0E0"),
-        DropdownBg    = Color3.fromHex("#1A0A00"),
-        DropdownItem  = Color3.fromHex("#0D0500"),
-        DropdownHover = Color3.fromHex("#331800"),
-        InputBg       = Color3.fromHex("#110700"),
-        TooltipBg     = Color3.fromHex("#080300"),
-        NotifBg       = Color3.fromHex("#1A0A00"),
-        ScrollBar     = Color3.fromHex("#281200"),
-        TitleText     = Color3.fromHex("#FFF0E0"),
-        CloseBtn      = Color3.fromHex("#CC2200"),
-        MinimizeBtn   = Color3.fromHex("#553300"),
-        SectionHeader = Color3.fromHex("#281200"),
-    },
-    ["Monochrome"] = {
-        accent        = Color3.fromRGB(210, 210, 210),
-        Background    = Color3.fromHex("#080808"),
-        TopBar        = Color3.fromHex("#111111"),
-        LeftBar       = Color3.fromHex("#161616"),
-        CategoryHover = Color3.fromHex("#222222"),
-        CategoryText  = Color3.fromHex("#DDDDDD"),
-        ContentBg     = Color3.fromHex("#080808"),
-        ElementBg     = Color3.fromHex("#111111"),
-        ElementBorder = Color3.fromHex("#2A2A2A"),
-        AccentOff     = Color3.fromHex("#2A2A2A"),
-        TextPrimary   = Color3.fromHex("#EEEEEE"),
-        TextSecondary = Color3.fromHex("#999999"),
-        TextDisabled  = Color3.fromHex("#444444"),
-        SliderTrack   = Color3.fromHex("#2A2A2A"),
-        SliderKnob    = Color3.fromHex("#EEEEEE"),
-        DropdownBg    = Color3.fromHex("#111111"),
-        DropdownItem  = Color3.fromHex("#080808"),
-        DropdownHover = Color3.fromHex("#222222"),
-        InputBg       = Color3.fromHex("#0C0C0C"),
-        TooltipBg     = Color3.fromHex("#050505"),
-        NotifBg       = Color3.fromHex("#111111"),
-        ScrollBar     = Color3.fromHex("#1A1A1A"),
-        TitleText     = Color3.fromHex("#EEEEEE"),
-        CloseBtn      = Color3.fromHex("#555555"),
-        MinimizeBtn   = Color3.fromHex("#333333"),
-        SectionHeader = Color3.fromHex("#1A1A1A"),
-    },
-}
 
+-- DEFAULT BUILT-IN PRESETS; Used by AddConfigPreset when no presets table is supplied.
+
+
+local DEFAULT_PRESETS = {
+  ["Default (Lime)"] = {
+    accent = Color3.fromRGB(57, 255, 20),
+    Background = Color3.fromHex("#0A0A0A"),
+    TopBar = Color3.fromHex("#111111"),
+    LeftBar = Color3.fromHex("#141414"),
+    CategoryHover = Color3.fromHex("#1F1F1F"),
+    CategoryText = Color3.fromHex("#FFFFFF"),
+    ContentBg = Color3.fromHex("#0A0A0A"),
+    ElementBg = Color3.fromHex("#141414"),
+    ElementBorder = Color3.fromHex("#2A2A2A"),
+    AccentOff = Color3.fromHex("#2A2A2A"),
+    TextPrimary = Color3.fromHex("#FFFFFF"),
+    TextSecondary = Color3.fromHex("#AAAAAA"),
+    TextDisabled = Color3.fromHex("#555555"),
+    SliderTrack = Color3.fromHex("#2A2A2A"),
+    SliderKnob = Color3.fromHex("#FFFFFF"),
+    DropdownBg = Color3.fromHex("#111111"),
+    DropdownItem = Color3.fromHex("#0A0A0A"),
+    DropdownHover = Color3.fromHex("#1F1F1F"),
+    InputBg = Color3.fromHex("#0D0D0D"),
+    TooltipBg = Color3.fromHex("#050505"),
+    NotifBg = Color3.fromHex("#111111"),
+    ScrollBar = Color3.fromHex("#1A1A1A"),
+    TitleText = Color3.fromHex("#FFFFFF"),
+    CloseBtn = Color3.fromHex("#CC2200"),
+    MinimizeBtn = Color3.fromHex("#444444"),
+    SectionHeader = Color3.fromHex("#1A1A1A"),
+  },
+}
 -- ─────────────────────────────────────────────────────────────
 -- ADD CONFIG PRESET
 -- ─────────────────────────────────────────────────────────────
@@ -2567,7 +2251,7 @@ function MatchaUI.Run()
                     else
                         catActive = true  -- tooltips not attached to a category (e.g. standalone)
                     end
-                    local hover = catActive and inBounds(mPos.X, mPos.Y, e._x, e._y, e._w, e._h)
+                    local hover = catActive and isInBoxBounds(mPos.X, mPos.Y, e._x, e._y, e._w, e._h)
                     tip._bg.Visible  = hover
                     tip._txt.Visible = hover
                     if hover then
@@ -2587,12 +2271,12 @@ function MatchaUI.Run()
                 if not win.Visible then continue end
 
                 -- Drag window (topbar)
-                if _mouseJustDown and inBounds(mPos.X, mPos.Y,
+                if _mouseJustDown and isInBoxBounds(mPos.X, mPos.Y,
                     win.X, win.Y, win.W, win._topBarH) then
                     -- Check it's not a button
-                    local onMin = inBounds(mPos.X, mPos.Y,
+                    local onMin = isInBoxBounds(mPos.X, mPos.Y,
                         win._minBtnX, win._minBtnY, win._minBtnW, win._minBtnH)
-                    local onClose = inBounds(mPos.X, mPos.Y,
+                    local onClose = isInBoxBounds(mPos.X, mPos.Y,
                         win._closeBtnX, win._closeBtnY, win._closeBtnW, win._closeBtnH)
                     if not onMin and not onClose then
                         win.Dragging = true
@@ -2616,11 +2300,11 @@ function MatchaUI.Run()
 
                 -- Minimize / Close
                 if _mouseJustDown then
-                    if inBounds(mPos.X, mPos.Y,
+                    if isInBoxBounds(mPos.X, mPos.Y,
                         win._minBtnX, win._minBtnY, win._minBtnW, win._minBtnH) then
                         win.Minimize()
                     end
-                    if inBounds(mPos.X, mPos.Y,
+                    if isInBoxBounds(mPos.X, mPos.Y,
                         win._closeBtnX, win._closeBtnY, win._closeBtnW, win._closeBtnH) then
                         win.SetVisible(false)
                     end
@@ -2631,7 +2315,7 @@ function MatchaUI.Run()
                 -- Category selection
                 if _mouseJustDown then
                     for _, cat in ipairs(win.Categories) do
-                        if inBounds(mPos.X, mPos.Y,
+                        if isInBoxBounds(mPos.X, mPos.Y,
                             cat._bg.Position.X, cat._bg.Position.Y,
                             cat._bg.Size.X, cat._bg.Size.Y) then
                             win._activateCategory(cat)
@@ -2663,7 +2347,7 @@ function MatchaUI.Run()
                                 for _, widget in ipairs(wElemWrap._widgets) do
                                     if widget._elem == elem then
                                         -- Check mouse is inside the ScrollFrame's visible rect
-                                        local insideFrame = inBounds(mPos.X, mPos.Y,
+                                        local insideFrame = isInBoxBounds(mPos.X, mPos.Y,
                                             wElemWrap._x, wElemWrap._y,
                                             wElemWrap._w - 8, wElemWrap._h)
                                         -- COLORPICKER EXCEPTION: if the panel is open, also allow
@@ -2672,7 +2356,7 @@ function MatchaUI.Run()
                                         -- unreachable because the gate rejects them.
                                         local insidePanel = false
                                         if elem.Type == "ColorPicker" and elem._cpOpen then
-                                            insidePanel = inBounds(mPos.X, mPos.Y,
+                                            insidePanel = isInBoxBounds(mPos.X, mPos.Y,
                                                 elem._panelX, elem._panelY,
                                                 elem._panelW, elem._panelH)
                                         end
@@ -2690,14 +2374,14 @@ function MatchaUI.Run()
 
                     -- BUTTON (disabled while a dropdown is open)
                     if elem.Type == "Button" and _mouseJustDown and not _choosingThisFrame then
-                        if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             if elem.Callback then pcall(elem.Callback) end
                         end
                     end
 
                     -- TOGGLE (disabled while a dropdown is open)
                     if elem.Type == "Toggle" and _mouseJustDown and not _choosingThisFrame then
-                        if inBounds(mPos.X, mPos.Y, elem._tx, elem._ty, elem._trackW, elem._trackH) then
+                        if isInBoxBounds(mPos.X, mPos.Y, elem._tx, elem._ty, elem._trackW, elem._trackH) then
                             elem.State = not elem.State
                             elem._track.Color = elem.State and Theme.AccentOn or Theme.AccentOff
                             local kx = elem.State
@@ -2710,7 +2394,7 @@ function MatchaUI.Run()
 
                     -- CHECKBOX (disabled while a dropdown is open)
                     if elem.Type == "Checkbox" and _mouseJustDown and not _choosingThisFrame then
-                        if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             elem.State = not elem.State
                             elem._check.Visible = elem.State
                             if elem.Callback then pcall(elem.Callback, elem.State) end
@@ -2720,14 +2404,14 @@ function MatchaUI.Run()
                     -- SLIDER drag start (disabled while a dropdown is open)
                     if elem.Type == "Slider" and _mouseJustDown and _sliderDrag == nil and not _choosingThisFrame then
                         -- click on track or knob
-                        if inBounds(mPos.X, mPos.Y, elem._trackX, elem._trackY - 6, elem._trackW, 16) then
+                        if isInBoxBounds(mPos.X, mPos.Y, elem._trackX, elem._trackY - 6, elem._trackW, 16) then
                             _sliderDrag = elem
                         end
                     end
 
                     -- DROPDOWN
                     if elem.Type == "Dropdown" and _mouseJustDown then
-                        if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             -- toggle open
                             elem._isOpen = not elem._isOpen
                             if elem._isOpen then
@@ -2765,7 +2449,7 @@ function MatchaUI.Run()
                             -- check items
                             local hit = false
                             for _, item in ipairs(elem._itemObjs) do
-                                if inBounds(mPos.X, mPos.Y, item._x, item._y, elem._w, 22) then
+                                if isInBoxBounds(mPos.X, mPos.Y, item._x, item._y, elem._w, 22) then
                                     elem.Selected      = item._value
                                     elem._selTxt.Text  = item._value
                                     hit = true
@@ -2786,7 +2470,7 @@ function MatchaUI.Run()
                     -- KEYBIND
                     if elem.Type == "Keybind" then
                         -- Arm on mouse down; only start scanning after mouse is released
-                        if _mouseJustDown and not _choosingThisFrame and inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if _mouseJustDown and not _choosingThisFrame and isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             elem._pendingListen = true
                             elem.Listening = false
                             elem._kbTxt.Text  = "..."
@@ -2821,7 +2505,7 @@ function MatchaUI.Run()
                     -- mid-mousedown causes Matcha to ignore it for the current press.
                     if elem.Type == "TextInput" then
                         if _mouseJustDown and not _choosingThisFrame then
-                            if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                            if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                                 -- Clicked inside this input: focus it
                                 if _focusedInput ~= elem then
                                     -- Blur the previously focused input first
@@ -2872,7 +2556,7 @@ function MatchaUI.Run()
                         end
 
                         -- Toggle open/close on header click
-                        if _mouseJustDown and inBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH) then
+                        if _mouseJustDown and isInBoxBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH) then
                             elem._cpOpen = not elem._cpOpen
                             elem._arrowTxt.Text = elem._cpOpen and "<" or ">"
                             if elem._cpOpen then
@@ -2926,7 +2610,7 @@ function MatchaUI.Run()
                                     if btn._origKnobDY   then btn._knobY  = newPanelY + btn._origKnobDY  end
                                 end
 
-                                -- Update stored panel position for inBounds checks
+                                -- Update stored panel position for isInBoxBounds checks
                                 elem._panelX = newPanelX
                                 elem._panelY = newPanelY
 
@@ -2939,8 +2623,8 @@ function MatchaUI.Run()
                         if elem._cpOpen then
                             -- Close panel if click is outside both header and panel
                             if _mouseJustDown then
-                                local inHeader = inBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH)
-                                local inPanel  = inBounds(mPos.X, mPos.Y, elem._panelX, elem._panelY, elem._panelW, elem._panelH)
+                                local inHeader = isInBoxBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH)
+                                local inPanel  = isInBoxBounds(mPos.X, mPos.Y, elem._panelX, elem._panelY, elem._panelW, elem._panelH)
                                 if not inHeader and not inPanel then
                                     elem._cpOpen = false
                                     elem._arrowTxt.Text = ">"
@@ -2951,7 +2635,7 @@ function MatchaUI.Run()
                             -- Palette swatch click
                             if _mouseJustDown then
                                 for _, sw in ipairs(elem._paletteSwatch or {}) do
-                                    if inBounds(mPos.X, mPos.Y, sw._x, sw._y, sw._w, sw._h) then
+                                    if isInBoxBounds(mPos.X, mPos.Y, sw._x, sw._y, sw._w, sw._h) then
                                         elem.Color = sw._color
                                         elem._refreshAll()
                                         break
@@ -2962,7 +2646,7 @@ function MatchaUI.Run()
                             -- RGB channel sliders: start drag on mousedown, update on hold
                             if _mouseJustDown and elem._cpDragCh == nil then
                                 for _, btn in ipairs(elem._btnObjs or {}) do
-                                    if btn._isSlider and inBounds(mPos.X, mPos.Y, btn._x, btn._y, btn._w, btn._h) then
+                                    if btn._isSlider and isInBoxBounds(mPos.X, mPos.Y, btn._x, btn._y, btn._w, btn._h) then
                                         elem._cpDragCh  = btn._ch
                                         elem._cpDragBtn = btn
                                         break
@@ -2999,7 +2683,7 @@ function MatchaUI.Run()
                         local sbW = 8   -- wider hit zone for the scrollbar (matches the track visual)
 
                         if _mouseJustDown then
-                            if inBounds(mPos.X, mPos.Y, sbX, elem._y, sbW, elem._h) then
+                            if isInBoxBounds(mPos.X, mPos.Y, sbX, elem._y, sbW, elem._h) then
                                 -- Clicked scrollbar track/thumb — thumb drag
                                 elem._thumbDragging    = true
                                 elem._contentDragging  = false
@@ -3008,14 +2692,14 @@ function MatchaUI.Run()
                                 local thumbMaxY  = math.max(1, elem._h - elem._thumbH)
                                 local thumbTopY  = elem._y + (elem._scrollY / maxScroll) * thumbMaxY
                                 elem._thumbDragOffY = mPos.Y - thumbTopY
-                            elseif inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w - sbW, elem._h) then
+                            elseif isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w - sbW, elem._h) then
                                 -- Check if click lands on a ColorPicker header inside this frame.
                                 -- If so, skip starting a content drag so the picker can open.
                                 local onColorPickerHeader = false
                                 for _, widget in ipairs(elem._widgets) do
                                     local wElem = widget._elem
                                     if wElem.Type == "ColorPicker" and wElem._headerX then
-                                        if inBounds(mPos.X, mPos.Y, wElem._headerX, wElem._headerY, wElem._headerW, wElem._headerH) then
+                                        if isInBoxBounds(mPos.X, mPos.Y, wElem._headerX, wElem._headerY, wElem._headerW, wElem._headerH) then
                                             onColorPickerHeader = true
                                             break
                                         end
@@ -3364,5 +3048,4 @@ function MatchaUI.Destroy()
     _tooltips = {}
 end
 
-_G.MatchaUI = MatchaUI
 return MatchaUI

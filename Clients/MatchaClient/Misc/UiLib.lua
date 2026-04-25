@@ -1,117 +1,124 @@
+-- @env: Matcha LuaVM
+-- MatchaUI v1.0 — Modular Drawing-based UI Library
+-- Designed for Matcha external executor overlay rendering
+-- No tweens, no heavy animations. Pure Drawing API.
 
+print("MatchaUI 1.2.0 - shystemmm")
 local MatchaUI = {}
 MatchaUI.__index = MatchaUI
-_focusedInput = nil
 
+-- ─────────────────────────────────────────────────────────────
+-- THEME
+-- ─────────────────────────────────────────────────────────────
+-- Centralized accent color — change this one value to re-theme all lime-green
+-- elements across the entire UI without touching any other variable.
+local AccentColor = Color3.fromHex("#39FF14")  -- Lime Green
 
--- Centralized accent color — change this one value to re-theme all lime-green elements across the entire UI without touching any other variable.
 local Theme = {
-Background      = Color3.fromHex("#0A0A0A"),
-	TopBar          = Color3.fromHex("#111111"),
-  LeftBar         = Color3.fromHex("#141414"),
-  CategoryActive  = Color3.fromHex("#39FF14"),
-  CategoryHover   = Color3.fromHex("#1F1F1F"),
-  CategoryText    = Color3.fromHex("#FFFFFF"),
-  ContentBg       = Color3.fromHex("#0A0A0A"),
-  ElementBg       = Color3.fromHex("#141414"),
-  ElementBorder   = Color3.fromHex("#2A2A2A"),
-  AccentOn        = Color3.fromHex("#39FF14"),
-  AccentOff       = Color3.fromHex("#2A2A2A"),
-  TextPrimary     = Color3.fromHex("#FFFFFF"),
-  TextSecondary   = Color3.fromHex("#AAAAAA"),
-  TextDisabled    = Color3.fromHex("#555555"),
-  SliderTrack     = Color3.fromHex("#2A2A2A"),
-  SliderFill      = Color3.fromHex("#39FF14"),
-  SliderKnob      = Color3.fromHex("#FFFFFF"),
-  DropdownBg      = Color3.fromHex("#111111"),
-  DropdownItem    = Color3.fromHex("#0A0A0A"),
-  DropdownHover   = Color3.fromHex("#1F1F1F"),
-  InputBg         = Color3.fromHex("#0D0D0D"),
-  InputBorder     = Color3.fromHex("#39FF14"),
-  TooltipBg       = Color3.fromHex("#050505"),
-  NotifBg         = Color3.fromHex("#111111"),
-  NotifBorder     = Color3.fromHex("#39FF14"),
+    Background      = Color3.fromHex("#0A0A0A"),
+    TopBar          = Color3.fromHex("#111111"),
+    LeftBar         = Color3.fromHex("#141414"),
+    CategoryActive  = AccentColor,
+    CategoryHover   = Color3.fromHex("#1F1F1F"),
+    CategoryText    = Color3.fromHex("#FFFFFF"),
+    ContentBg       = Color3.fromHex("#0A0A0A"),
+    ElementBg       = Color3.fromHex("#141414"),
+    ElementBorder   = Color3.fromHex("#2A2A2A"),
+    AccentOn        = AccentColor,
+    AccentOff       = Color3.fromHex("#2A2A2A"),
+    TextPrimary     = Color3.fromHex("#FFFFFF"),
+    TextSecondary   = Color3.fromHex("#AAAAAA"),
+    TextDisabled    = Color3.fromHex("#555555"),
+    SliderTrack     = Color3.fromHex("#2A2A2A"),
+    SliderFill      = AccentColor,
+    SliderKnob      = Color3.fromHex("#FFFFFF"),
+    DropdownBg      = Color3.fromHex("#111111"),
+    DropdownItem    = Color3.fromHex("#0A0A0A"),
+    DropdownHover   = Color3.fromHex("#1F1F1F"),
+    InputBg         = Color3.fromHex("#0D0D0D"),
+    InputBorder     = AccentColor,
+    TooltipBg       = Color3.fromHex("#050505"),
+    NotifBg         = Color3.fromHex("#111111"),
+    NotifBorder     = AccentColor,
 
-	ScrollBar       = Color3.fromHex("#1A1A1A"),
-  ScrollThumb     = Color3.fromHex("#39FF14"),
-  TitleText       = Color3.fromHex("#FFFFFF"),
-  CloseBtn        = Color3.fromHex("#CC2200"),
-  MinimizeBtn     = Color3.fromHex("#444444"),
-  SectionHeader   = Color3.fromHex("#1A1A1A"),
-  SectionText     = Color3.fromHex("#39FF14"),
+    ScrollBar       = Color3.fromHex("#1A1A1A"),
+    ScrollThumb     = AccentColor,
+    TitleText       = Color3.fromHex("#FFFFFF"),
+    CloseBtn        = Color3.fromHex("#CC2200"),
+    MinimizeBtn     = Color3.fromHex("#444444"),
+    SectionHeader   = Color3.fromHex("#1A1A1A"),
+    SectionText     = AccentColor,
 }
 
-
-
-
+local _focusedInput = nil
+-- ─────────────────────────────────────────────────────────────
+-- INTERNAL HELPERS
+-- ─────────────────────────────────────────────────────────────
 local _objects  = {}   -- all Drawing objects for cleanup
 local _windows  = {}   -- registered windows
 local _notifs   = {}   -- active notifications
 local _tooltips = {}   -- active tooltips
 
--- Set to true while any dropdown is open. While Choosing is true, checkboxes, toggles, textboxes, and other interactive elements will not respond to input so the dropdown has exclusive focus.
+-- Set to true while any dropdown is open.
+-- While Choosing is true, checkboxes, toggles, textboxes, and other interactive
+-- elements will not respond to input so the dropdown has exclusive focus.
 MatchaUI.Choosing = false
 
 local function newDraw(type)
-	local obj = Drawing.new(type)
-  table.insert(_objects, obj)
-	
-  return obj
+    local obj = Drawing.new(type)
+    table.insert(_objects, obj)
+    return obj
 end
 
-local function createRectangle(x, y, w, h, color, zIndex, filled, thickness)
-  local r = newDraw("Square")
-  r.Position    = Vector2.new(x, y)
-  r.Size        = Vector2.new(w, h)
-  r.Color       = color or Theme.ElementBg
-  r.ZIndex      = zIndex or 10
-  r.Filled      = (filled ~= false)
-  r.Thickness   = thickness or 1
-  r.Transparency = 1
-  r.Visible     = true
-
-  return r
+local function makeRect(x, y, w, h, color, zIndex, filled, thickness)
+    local r = newDraw("Square")
+    r.Position    = Vector2.new(x, y)
+    r.Size        = Vector2.new(w, h)
+    r.Color       = color or Theme.ElementBg
+    r.ZIndex      = zIndex or 10
+    r.Filled      = (filled ~= false)
+    r.Thickness   = thickness or 1
+    r.Transparency = 1
+    r.Visible     = true
+    return r
 end
 
-
+-- Active font — changed globally via MatchaUI.SetFont()
 local _currentFont = Drawing.Fonts.Monospace
-
+-- All Text Drawing objects created by makeText, so SetFont can repaint them
 local _textObjects = {}
 
-local function createText(textValue, posX, posY, textSize, textColor, zIndex, isCentered, hasOutline)
-  local textObject = newDraw("Text")
-
-  textObject.Text         = tostring(textValue)
-  textObject.Position     = Vector2.new(posX, posY)
-  textObject.Size         = textSize or 14
-  textObject.Color        = textColor or Theme.TextPrimary
-  textObject.ZIndex       = zIndex or 11
-  textObject.Center       = isCentered or false
-  textObject.Outline      = (hasOutline ~= false)
-  textObject.Font         = _currentFont
-  textObject.Transparency = 1
-  textObject.Visible      = true
-
-  table.insert(_textObjects, textObject)
-
-  return textObject
+local function makeText(text, x, y, size, color, zIndex, centered, outline)
+    local t = newDraw("Text")
+    t.Text         = tostring(text)
+    t.Position     = Vector2.new(x, y)
+    t.Size         = size or 14
+    t.Color        = color or Theme.TextPrimary
+    t.ZIndex       = zIndex or 11
+    t.Center       = centered or false
+    t.Outline      = (outline ~= false)
+    t.Font         = _currentFont
+    t.Transparency = 1
+    t.Visible      = true
+    table.insert(_textObjects, t)
+    return t
 end
 
-local function isPointInBound(mouseX, mouseY, boxX, boxY, boxWidth, boxHeight)
-	return mouseX >= boxX and mouseX <= boxX + boxWidth and mouseY >= boxY and mouseY <= boxY + boxHeight
+local function inBounds(mx, my, x, y, w, h)
+    return mx >= x and mx <= x + w and my >= y and my <= y + h
 end
 
-
-local function setGroupVisibility(objectGroup, isVisible)
-  for _, object in ipairs(objectGroup) do
-    if object and object.Remove then
-      pcall(function()
-        object.Visible = isVisible
-      end)
+local function setGroupVisible(group, state)
+    for _, obj in ipairs(group) do
+        if obj and obj.Remove then
+            pcall(function() obj.Visible = state end)
+        end
     end
-  end
 end
 
+-- ─────────────────────────────────────────────────────────────
+-- INPUT STATE
+-- ─────────────────────────────────────────────────────────────
 local Mouse        = game:GetService("Players").LocalPlayer:GetMouse()
 local _lastMouse1  = false
 local _mouseJustDown  = false
@@ -119,37 +126,74 @@ local _mouseJustUp    = false
 
 -- Key name lookup table
 local KeyNames = {
-  [8] = "Backspace", [9] = "Tab", [13] = "Enter", [16] = "Shift", [17] = "Ctrl", [18] = "Alt", [20] = "CapsLock", [27] = "Esc",
-  [32] = "Space", [33] = "PageUp", [34] = "PageDown", [35] = "End", [36] = "Home", [37] = "Left", [38] = "Up", [39] = "Right", [40] = "Down", [45] = "Insert", [46] = "Delete",
-  [48] = "0", [49] = "1", [50] = "2", [51] = "3", [52] = "4", [53] = "5", [54] = "6", [55] = "7", [56] = "8", [57] = "9",
-	[65] = "A", [66] = "B", [67] = "C", [68] = "D", [69] = "E", [70] = "F", [71] = "G", [72] = "H", [73] = "I", [74] = "J", [75] = "K", [76] = "L", [77] = "M", [78] = "N", [79] = "O", [80] = "P", [81] = "Q", [82] = "R", [83] = "S", [84] = "T", [85] = "U", [86] = "V", [87] = "W", [88] = "X", [89] = "Y", [90] = "Z",
-  [112] = "F1", [113] = "F2", [114] = "F3", [115] = "F4", [116] = "F5", [117] = "F6", [118] = "F7", [119] = "F8", [120] = "F9", [121] = "F10", [122] = "F11", [123] = "F12",
+    [8]="Backspace",[9]="Tab",[13]="Enter",[16]="Shift",[17]="Ctrl",
+    [18]="Alt",[20]="CapsLock",[27]="Esc",[32]="Space",[33]="PageUp",
+    [34]="PageDown",[35]="End",[36]="Home",[37]="Left",[38]="Up",
+    [39]="Right",[40]="Down",[45]="Insert",[46]="Delete",
+    [48]="0",[49]="1",[50]="2",[51]="3",[52]="4",[53]="5",
+    [54]="6",[55]="7",[56]="8",[57]="9",
+    [65]="A",[66]="B",[67]="C",[68]="D",[69]="E",[70]="F",
+    [71]="G",[72]="H",[73]="I",[74]="J",[75]="K",[76]="L",
+    [77]="M",[78]="N",[79]="O",[80]="P",[81]="Q",[82]="R",
+    [83]="S",[84]="T",[85]="U",[86]="V",[87]="W",[88]="X",
+    [89]="Y",[90]="Z",
+    [112]="F1",[113]="F2",[114]="F3",[115]="F4",[116]="F5",
+    [117]="F6",[118]="F7",[119]="F8",[120]="F9",[121]="F10",
+    [122]="F11",[123]="F12",
 }
+
 -- Mouse VK codes to exclude from keybind detection
-local _MouseVKCodes = {
-    [1] = true,   -- VK_LBUTTON
-    [2] = true,   -- VK_RBUTTON
-    [4] = true,   -- VK_MBUTTON
-    [5] = true,   -- VK_XBUTTON1
-    [6] = true,   -- VK_XBUTTON2
+local MouseVKCodes = {
+    [1]=true,   -- VK_LBUTTON
+    [2]=true,   -- VK_RBUTTON
+    [4]=true,   -- VK_MBUTTON
+    [5]=true,   -- VK_XBUTTON1
+    [6]=true,   -- VK_XBUTTON2
 }
 
--- Explicit allowlist of VK codes that are valid keybind targets. Only keyboard keys with readable names are accepted; mouse buttons and unmappable codes (3, 7, 0xA–0x0F, etc.) are silently skipped.
+-- Explicit allowlist of VK codes that are valid keybind targets.
+-- Only keyboard keys with readable names are accepted; mouse buttons and
+-- unmappable codes (3, 7, 0xA–0x0F, etc.) are silently skipped.
 local VALID_KEYBIND_KEYS = {
-  [8] = true, [9] = true, [13] = true, [16] = true, [17] = true, [18] = true, [20] = true, [27] = true,
-  [32] = true, [33] = true, [34] = true, [35] = true, [36] = true, [37] = true, [38] = true, [39] = true, [40] = true, [45] = true, [46] = true,
-  [48] = true, [49] = true, [50] = true, [51] = true, [52] = true, [53] = true, [54] = true, [55] = true, [56] = true, [57] = true,
-  [65] = true, [66] = true, [67] = true, [68] = true, [69] = true, [70] = true, [71] = true, [72] = true, [73] = true, [74] = true, [75] = true, [76] = true, [77] = true, [78] = true, [79] = true, [80] = true, [81] = true, [82] = true, [83] = true, [84] = true, [85] = true, [86] = true, [87] = true, [88] = true, [89] = true, [90] = true,
-  [112] = true, [113] = true, [114] = true, [115] = true, [116] = true, [117] = true, [118] = true, [119] = true, [120] = true, [121] = true, [122] = true, [123] = true,
+    -- Special
+    [8]=true,  [9]=true,  [13]=true, [16]=true, [17]=true,
+    [18]=true, [20]=true, [27]=true, [32]=true,
+    [33]=true, [34]=true, [35]=true, [36]=true,
+    [37]=true, [38]=true, [39]=true, [40]=true,
+    [45]=true, [46]=true,
+    -- Digits 0–9
+    [48]=true,[49]=true,[50]=true,[51]=true,[52]=true,
+    [53]=true,[54]=true,[55]=true,[56]=true,[57]=true,
+    -- Letters A–Z
+    [65]=true,[66]=true,[67]=true,[68]=true,[69]=true,
+    [70]=true,[71]=true,[72]=true,[73]=true,[74]=true,
+    [75]=true,[76]=true,[77]=true,[78]=true,[79]=true,
+    [80]=true,[81]=true,[82]=true,[83]=true,[84]=true,
+    [85]=true,[86]=true,[87]=true,[88]=true,[89]=true,
+    [90]=true,
+    -- F1–F12
+    [112]=true,[113]=true,[114]=true,[115]=true,[116]=true,
+    [117]=true,[118]=true,[119]=true,[120]=true,[121]=true,
+    [122]=true,[123]=true,
 }
 
+-- ─────────────────────────────────────────────────────────────
+-- ACCENT COLOR REGISTRY
+-- ─────────────────────────────────────────────────────────────
+-- Must be declared before CreateWindow so element builder closures
+-- can call trackAccent(). SetAccentColor() iterates this table to
+-- repaint every accent-colored Drawing object live.
 local _accentObjects = {}  -- array of Drawing objects whose .Color = AccentColor
 
-local function TrackAccent(obj)
+local function trackAccent(obj)
     table.insert(_accentObjects, obj)
 end
 
-
+-- ─────────────────────────────────────────────────────────────
+-- THEME COLOR REGISTRY
+-- ─────────────────────────────────────────────────────────────
+-- Maps each Theme key to a list of Drawing objects that use it.
+-- SetThemeColor() looks up the key directly — no fragile color comparison.
 local _themeObjects = {}  -- { [themeKey] = { obj, ... } }
 
 local function trackTheme(key, obj)
@@ -159,7 +203,14 @@ local function trackTheme(key, obj)
     table.insert(_themeObjects[key], obj)
 end
 
-
+-- ─────────────────────────────────────────────────────────────
+-- WINDOW CONSTRUCTOR
+-- ─────────────────────────────────────────────────────────────
+-- Returns a Window object. All elements are added to a window.
+-- Layout:
+--   TopBar  (title, minimize, close)
+--   LeftBar (categories)
+--   Content (element panels per category)
 
 local TOPBAR_H    = 28
 local LEFTBAR_W   = 120
@@ -190,40 +241,40 @@ function MatchaUI.CreateWindow(opts)
         _elements  = {},
     }
 
-    local function draw(d) table.insert(win._draws, d); return d end
+    local function draw(d) table.insert(win._draws, d) return d end
 
     -- ── Shadow / border
-    local shadow = draw(createRectangle(wx-2, wy-2, ww+4, wh+4, Color3.fromHex("#000000"), baseZ, true))
+    local shadow = draw(makeRect(wx-2, wy-2, ww+4, wh+4, Color3.fromHex("#000000"), baseZ, true))
     shadow.Transparency = 0.6
 
     -- ── Main background
-    local bg = draw(createRectangle(wx, wy, ww, wh, Theme.Background, baseZ+1, true))
+    local bg = draw(makeRect(wx, wy, ww, wh, Theme.Background, baseZ+1, true))
     trackTheme("Background", bg)
 
     -- ── TopBar
-    local topBar = draw(createRectangle(wx, wy, ww, TOPBAR_H, Theme.TopBar, baseZ+2, true))
+    local topBar = draw(makeRect(wx, wy, ww, TOPBAR_H, Theme.TopBar, baseZ+2, true))
     trackTheme("TopBar", topBar)
 
     -- Title text
-    local titleTxt = draw(createText(title, wx + 10, wy + 7, 14, Theme.TitleText, baseZ+3, false, true))
+    local titleTxt = draw(makeText(title, wx + 10, wy + 7, 14, Theme.TitleText, baseZ+3, false, true))
     trackTheme("TitleText", titleTxt)
 
     -- Minimize button
-    local minBtn  = draw(createRectangle(wx + ww - 52, wy + 6, 18, 16, Theme.MinimizeBtn, baseZ+3, true))
+    local minBtn  = draw(makeRect(wx + ww - 52, wy + 6, 18, 16, Theme.MinimizeBtn, baseZ+3, true))
     trackTheme("MinimizeBtn", minBtn)
-    local minTxt  = draw(createText("-", wx + ww - 52 + 6, wy + 7, 13, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
+    local minTxt  = draw(makeText("-", wx + ww - 52 + 6, wy + 7, 13, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
 
     -- Close button
-    local closeBtn  = draw(createRectangle(wx + ww - 26, wy + 6, 18, 16, Theme.CloseBtn, baseZ+3, true))
+    local closeBtn  = draw(makeRect(wx + ww - 26, wy + 6, 18, 16, Theme.CloseBtn, baseZ+3, true))
     trackTheme("CloseBtn", closeBtn)
-    local closeTxt  = draw(createText("X", wx + ww - 26 + 5, wy + 7, 12, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
+    local closeTxt  = draw(makeText("X", wx + ww - 26 + 5, wy + 7, 12, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
 
     -- ── LeftBar
-    local leftBar = draw(createRectangle(wx, wy + TOPBAR_H, LEFTBAR_W, wh - TOPBAR_H, Theme.LeftBar, baseZ+2, true))
+    local leftBar = draw(makeRect(wx, wy + TOPBAR_H, LEFTBAR_W, wh - TOPBAR_H, Theme.LeftBar, baseZ+2, true))
     trackTheme("LeftBar", leftBar)
 
     -- ── Content area background
-    local contentBg = draw(createRectangle(wx + LEFTBAR_W, wy + TOPBAR_H, ww - LEFTBAR_W, wh - TOPBAR_H, Theme.ContentBg, baseZ+2, true))
+    local contentBg = draw(makeRect(wx + LEFTBAR_W, wy + TOPBAR_H, ww - LEFTBAR_W, wh - TOPBAR_H, Theme.ContentBg, baseZ+2, true))
     trackTheme("ContentBg", contentBg)
 
     -- ─────────────────────────────
@@ -358,12 +409,10 @@ function MatchaUI.CreateWindow(opts)
                         elem._svCursor.Visible = false
                         elem._panelBorder.Visible = false
                         local cs = elem._channelSliders or {}
-                        for _, ch in ipairs({"R","G","B"}) 
-                        do local s=cs[ch] 
-                            if s then
-                                s._lbl.Visible = false; s._val.Visible=false
-                                s._bg.Visible = false; s._fill.Visible=false
-                                if s._knob then s._knob.Visible = false end
+                        for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
+                            s._lbl.Visible=false s._val.Visible=false
+                            s._bg.Visible=false s._fill.Visible=false
+                            if s._knob then s._knob.Visible=false end
                         end end
                         elem._hexLabel.Visible = false
                         if elem._prevPatch then elem._prevPatch.Visible = false end
@@ -441,12 +490,10 @@ function MatchaUI.CreateWindow(opts)
                             for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
                             elem._svCursor.Visible = false
                             local cs = elem._channelSliders or {}
-                            for _, ch in ipairs({"R","G","B"}) do 
-                                local s=cs[ch] 
-                                if s then
-                                s._lbl.Visible = false; s._val.Visible=false
-                                s._bg.Visible = false; s._fill.Visible=false
-                                if s._knob then s._knob.Visible = false end
+                            for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
+                                s._lbl.Visible=false s._val.Visible=false
+                                s._bg.Visible=false s._fill.Visible=false
+                                if s._knob then s._knob.Visible=false end
                             end end
                             elem._hexLabel.Visible = false
                             if elem._prevPatch then elem._prevPatch.Visible = false end
@@ -475,9 +522,9 @@ function MatchaUI.CreateWindow(opts)
         local cy   = win.Y + TOPBAR_H + idx * CAT_H + 4
         local cx   = win.X + 4
 
-        local catBg = draw(createRectangle(cx, cy, LEFTBAR_W - 8, CAT_H - 2, Theme.LeftBar, baseZ+3, true))
+        local catBg = draw(makeRect(cx, cy, LEFTBAR_W - 8, CAT_H - 2, Theme.LeftBar, baseZ+3, true))
         trackTheme("LeftBar", catBg)
-        local catLbl = draw(createText(name, cx + 8, cy + 7, 13, Theme.CategoryText, baseZ+4, false, true))
+        local catLbl = draw(makeText(name, cx + 8, cy + 7, 13, Theme.CategoryText, baseZ+4, false, true))
         trackTheme("CategoryText", catLbl)
 
         local cat = {
@@ -574,14 +621,11 @@ function MatchaUI.CreateWindow(opts)
                 for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
                 elem._svCursor.Visible = false
                 local cs = elem._channelSliders or {}
-                for _, ch in ipairs({"R","G","B"}) do 
-                    local s=cs[ch]; 
-                    if s then
-                        s._lbl.Visible = false; s._val.Visible=false
-                        s._bg.Visible = false; s._fill.Visible=false
-                        if s._knob then s._knob.Visible=false end
-                end 
-            end
+                for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
+                    s._lbl.Visible=false s._val.Visible=false
+                    s._bg.Visible=false s._fill.Visible=false
+                    if s._knob then s._knob.Visible=false end
+                end end
                 elem._hexLabel.Visible = false
                 if elem._prevPatch then elem._prevPatch.Visible = false end
                 for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
@@ -619,12 +663,12 @@ function MatchaUI.CreateWindow(opts)
         local cw  = contentW()
         local cy  = contentCursorY(cat)
         local objs = {}
-        local bg   = draw(createRectangle(cx, cy, cw, 20, Theme.SectionHeader, baseZ+5, true))
+        local bg   = draw(makeRect(cx, cy, cw, 20, Theme.SectionHeader, baseZ+5, true))
         trackTheme("SectionHeader", bg)
-        local lbl  = draw(createText(labelText, cx + 6, cy + 4, 12, Theme.SectionText, baseZ+6, false, true))
-        TrackAccent(lbl)
-        table.insert(objs, bg)
-        table.insert(objs, lbl)
+        local lbl  = draw(makeText(labelText, cx + 6, cy + 4, 12, Theme.SectionText, baseZ+6, false, true))
+        trackAccent(lbl)
+        table.insert(objs, bg)   -- BUGFIX: bg must be in objs so it is shown/hidden with the category
+        table.insert(objs, lbl)  -- and repositioned correctly during window drag
         registerElem(cat, objs, 20)
         return objs
     end
@@ -635,9 +679,9 @@ function MatchaUI.CreateWindow(opts)
         local cw  = contentW()
         local cy  = contentCursorY(cat)
         local objs  = {}
-        local btnBg = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+        local btnBg = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", btnBg)
-        local btnLbl = draw(createText(labelText, cx + cw/2, cy + ELEM_H/2 - 6, 14, Theme.TextPrimary, baseZ+6, true, false))
+        local btnLbl = draw(makeText(labelText, cx + cw/2, cy + ELEM_H/2 - 6, 14, Theme.TextPrimary, baseZ+6, true, false))
         trackTheme("TextPrimary", btnLbl)
         table.insert(objs, btnBg)
         table.insert(objs, btnLbl)
@@ -658,23 +702,23 @@ function MatchaUI.CreateWindow(opts)
         local cy  = contentCursorY(cat)
         local state = default or false
         local objs = {}
-        local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
+        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
         trackTheme("TextPrimary", lbl)
         local trackW, trackH = 36, 16
         local tx = cx + cw - trackW - 8
         local ty = cy + ELEM_H/2 - trackH/2
-        local track   = draw(createRectangle(tx, ty, trackW, trackH, state and Theme.AccentOn or Theme.AccentOff, baseZ+6, true))
+        local track   = draw(makeRect(tx, ty, trackW, trackH, state and Theme.AccentOn or Theme.AccentOff, baseZ+6, true))
         if not state then trackTheme("AccentOff", track) end
         -- knob
         local knobSz  = 12
-        local knob    = draw(createRectangle(
+        local knob    = draw(makeRect(
             state and (tx + trackW - knobSz - 2) or (tx + 2),
             ty + 2, knobSz, knobSz, Theme.SliderKnob, baseZ+7, true
         ))
-        table.insert(objs, bg); table.insert(objs, lbl)
-        table.insert(objs, track); table.insert(objs, knob)
+        table.insert(objs, bg) table.insert(objs, lbl)
+        table.insert(objs, track) table.insert(objs, knob)
         registerElem(cat, objs, ELEM_H)
         local elem = {
             Type="Toggle", _bg=bg, _draws=objs,
@@ -695,31 +739,31 @@ function MatchaUI.CreateWindow(opts)
         local h   = ELEM_H + 10
         local val = default or min
         local objs = {}
-        local bg  = draw(createRectangle(cx, cy, cw, h, Theme.ElementBg, baseZ+5, true))
+        local bg  = draw(makeRect(cx, cy, cw, h, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl = draw(createText(labelText, cx + 8, cy + 6, 12, Theme.TextPrimary, baseZ+6, false, true))
+        local lbl = draw(makeText(labelText, cx + 8, cy + 6, 12, Theme.TextPrimary, baseZ+6, false, true))
         trackTheme("TextPrimary", lbl)
-        local valLbl = draw(createText(tostring(math.floor(val)), cx + cw - 30, cy + 6, 12, Theme.AccentOn, baseZ+6, false, true))
-        TrackAccent(valLbl)
+        local valLbl = draw(makeText(tostring(math.floor(val)), cx + cw - 30, cy + 6, 12, Theme.AccentOn, baseZ+6, false, true))
+        trackAccent(valLbl)
         -- track
         local trackPad = 8
         local trackW = cw - trackPad*2
         local trackY  = cy + h - 12
-        local trackBg = draw(createRectangle(cx + trackPad, trackY, trackW, 4, Theme.SliderTrack, baseZ+6, true))
+        local trackBg = draw(makeRect(cx + trackPad, trackY, trackW, 4, Theme.SliderTrack, baseZ+6, true))
         trackTheme("SliderTrack", trackBg)
         -- fill
         local fillPct = (val - min) / math.max(max - min, 0.001)
         local fillW   = math.floor(trackW * fillPct)
-        local fillRect = draw(createRectangle(cx + trackPad, trackY, math.max(fillW,1), 4, Theme.SliderFill, baseZ+7, true))
-        TrackAccent(fillRect)
+        local fillRect = draw(makeRect(cx + trackPad, trackY, math.max(fillW,1), 4, Theme.SliderFill, baseZ+7, true))
+        trackAccent(fillRect)
         -- knob
         local knobW, knobH = 10, 14
         local knobX = cx + trackPad + fillW - knobW/2
         local knobY = trackY - 5
-        local knob  = draw(createRectangle(knobX, knobY, knobW, knobH, Theme.SliderKnob, baseZ+8, true))
+        local knob  = draw(makeRect(knobX, knobY, knobW, knobH, Theme.SliderKnob, baseZ+8, true))
         trackTheme("SliderKnob", knob)
-        table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, valLbl)
-        table.insert(objs, trackBg); table.insert(objs, fillRect); table.insert(objs, knob)
+        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, valLbl)
+        table.insert(objs, trackBg) table.insert(objs, fillRect) table.insert(objs, knob)
         registerElem(cat, objs, h)
         local elem = {
             Type="Slider", _bg=bg, _draws=objs,
@@ -743,18 +787,18 @@ function MatchaUI.CreateWindow(opts)
         local selected = default or (options and options[1]) or ""
         local isOpen   = false
         local objs     = {}
-        local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
         trackTheme("TextSecondary", lbl)
-        local boxBg  = draw(createRectangle(cx + cw - 130, cy + 4, 122, 22, Theme.InputBg, baseZ+6, true))
+        local boxBg  = draw(makeRect(cx + cw - 130, cy + 4, 122, 22, Theme.InputBg, baseZ+6, true))
         trackTheme("InputBg", boxBg)
-        local selTxt = draw(createText(selected, cx + cw - 126, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
+        local selTxt = draw(makeText(selected, cx + cw - 126, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
         trackTheme("TextPrimary", selTxt)
-        local arrow  = draw(createText("v", cx + cw - 14, cy + 9, 11, Theme.AccentOn, baseZ+7, false, false))
-        TrackAccent(arrow)
-        table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, boxBg)
-        table.insert(objs, selTxt); table.insert(objs, arrow)
+        local arrow  = draw(makeText("v", cx + cw - 14, cy + 9, 11, Theme.AccentOn, baseZ+7, false, false))
+        trackAccent(arrow)
+        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, boxBg)
+        table.insert(objs, selTxt) table.insert(objs, arrow)
 
         -- Dropdown items (hidden by default, high Z)
         -- Items are built at y=0 (placeholder). Their real position is computed on open
@@ -764,9 +808,9 @@ function MatchaUI.CreateWindow(opts)
         local itemObjs = {}
         local dropBaseZ = baseZ + 50  -- always on top
         for i, opt in ipairs(options or {}) do
-            local iBg  = draw(createRectangle(0, 0, 122, 22, Theme.DropdownItem, dropBaseZ, true))
+            local iBg  = draw(makeRect(0, 0, 122, 22, Theme.DropdownItem, dropBaseZ, true))
             trackTheme("DropdownItem", iBg)
-            local iTxt = draw(createText(opt, 0, 0, 12, Theme.TextPrimary, dropBaseZ+1, false, true))
+            local iTxt = draw(makeText(opt, 0, 0, 12, Theme.TextPrimary, dropBaseZ+1, false, true))
             trackTheme("TextPrimary", iTxt)
             iBg.Visible  = false
             iTxt.Visible = false
@@ -892,19 +936,19 @@ function MatchaUI.CreateWindow(opts)
         local text = ""
         local focused = false
         local objs = {}
-        local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
         trackTheme("TextSecondary", lbl)
-        local inputBg = draw(createRectangle(cx + cw - 160, cy + 4, 152, 22, Theme.InputBg, baseZ+6, true))
+        local inputBg = draw(makeRect(cx + cw - 160, cy + 4, 152, 22, Theme.InputBg, baseZ+6, true))
         trackTheme("InputBg", inputBg)
-        local inputTxt = draw(createText(placeholder or "", cx + cw - 156, cy + 9, 12, Theme.TextDisabled, baseZ+7, false, true))
+        local inputTxt = draw(makeText(placeholder or "", cx + cw - 156, cy + 9, 12, Theme.TextDisabled, baseZ+7, false, true))
         trackTheme("TextDisabled", inputTxt)
-        local cursor   = draw(createRectangle(cx + cw - 156, cy + 7, 1, 14, Theme.AccentOn, baseZ+8, true))
-        TrackAccent(cursor)
+        local cursor   = draw(makeRect(cx + cw - 156, cy + 7, 1, 14, Theme.AccentOn, baseZ+8, true))
+        trackAccent(cursor)
         cursor.Visible = false
-        table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, inputBg)
-        table.insert(objs, inputTxt); table.insert(objs, cursor)
+        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, inputBg)
+        table.insert(objs, inputTxt) table.insert(objs, cursor)
         registerElem(cat, objs, ELEM_H)
         local elem = {
             Type="TextInput", _bg=bg, _draws=objs,
@@ -924,25 +968,25 @@ function MatchaUI.CreateWindow(opts)
         local cy  = contentCursorY(cat)
         local state = default or false
         local objs = {}
-        local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl = draw(createText(labelText, cx + 30, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
+        local lbl = draw(makeText(labelText, cx + 30, cy + ELEM_H/2 - 7, 13, Theme.TextPrimary, baseZ+6, false, true))
         trackTheme("TextPrimary", lbl)
         local boxSz = 16
         local bx = cx + 8
         local by = cy + ELEM_H/2 - boxSz/2
-        local box  = draw(createRectangle(bx, by, boxSz, boxSz, Theme.InputBg, baseZ+6, true))
+        local box  = draw(makeRect(bx, by, boxSz, boxSz, Theme.InputBg, baseZ+6, true))
         trackTheme("InputBg", box)
         -- border
-        local boxBorder = draw(createRectangle(bx, by, boxSz, boxSz, Theme.ElementBorder, baseZ+6, false))
+        local boxBorder = draw(makeRect(bx, by, boxSz, boxSz, Theme.ElementBorder, baseZ+6, false))
         trackTheme("ElementBorder", boxBorder)
         boxBorder.Filled = false
         -- check mark (filled accent square inside)
-        local check = draw(createRectangle(bx+3, by+3, boxSz-6, boxSz-6, Theme.AccentOn, baseZ+7, true))
-        TrackAccent(check)
+        local check = draw(makeRect(bx+3, by+3, boxSz-6, boxSz-6, Theme.AccentOn, baseZ+7, true))
+        trackAccent(check)
         check.Visible = state
-        table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, box)
-        table.insert(objs, boxBorder); table.insert(objs, check)
+        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, box)
+        table.insert(objs, boxBorder) table.insert(objs, check)
         registerElem(cat, objs, ELEM_H)
         local elem = {
             Type="Checkbox", _bg=bg, _draws=objs,
@@ -960,17 +1004,17 @@ function MatchaUI.CreateWindow(opts)
         local cw  = contentW()
         local cy  = contentCursorY(cat)
         local key = defaultKey or 0x2D
-        -- local listening = false
+        local listening = false
         local objs = {}
-        local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+        local bg  = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+        local lbl = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
         trackTheme("TextSecondary", lbl)
-        local kbBg  = draw(createRectangle(cx + cw - 100, cy + 4, 92, 22, Theme.InputBg, baseZ+6, true))
+        local kbBg  = draw(makeRect(cx + cw - 100, cy + 4, 92, 22, Theme.InputBg, baseZ+6, true))
         trackTheme("InputBg", kbBg)
-        local kbTxt = draw(createText("[ " .. (KeyNames[key] or "?") .. " ]", cx + cw - 98, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
+        local kbTxt = draw(makeText("[ " .. (KeyNames[key] or "?") .. " ]", cx + cw - 98, cy + 9, 12, Theme.TextPrimary, baseZ+7, false, true))
         trackTheme("TextPrimary", kbTxt)
-        table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, kbBg); table.insert(objs, kbTxt)
+        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, kbBg) table.insert(objs, kbTxt)
         registerElem(cat, objs, ELEM_H)
         local elem = {
             Type="Keybind", _bg=bg, _draws=objs,
@@ -997,17 +1041,17 @@ function MatchaUI.CreateWindow(opts)
         local objs = {}
 
         -- ── Header row ──────────────────────────────────────────────────
-        local bg      = draw(createRectangle(cx, cy, cw, rowH, Theme.ElementBg, baseZ+5, true))
+        local bg      = draw(makeRect(cx, cy, cw, rowH, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl     = draw(createText(labelText, cx + 8, cy + 6, 12, Theme.TextSecondary, baseZ+6, false, true))
+        local lbl     = draw(makeText(labelText, cx + 8, cy + 6, 12, Theme.TextSecondary, baseZ+6, false, true))
         trackTheme("TextSecondary", lbl)
-        local preview = draw(createRectangle(cx + cw - 54, cy + 4, 22, 22, color, baseZ+7, true))
-        local arrowBtn = draw(createRectangle(cx + cw - 28, cy + 4, 22, 22, Theme.InputBg, baseZ+7, true))
+        local preview = draw(makeRect(cx + cw - 54, cy + 4, 22, 22, color, baseZ+7, true))
+        local arrowBtn = draw(makeRect(cx + cw - 28, cy + 4, 22, 22, Theme.InputBg, baseZ+7, true))
         trackTheme("InputBg", arrowBtn)
-        local arrowTxt = draw(createText(">", cx + cw - 22, cy + 8, 12, Theme.AccentOn, baseZ+8, false, false))
-        TrackAccent(arrowTxt)
-        table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, preview)
-        table.insert(objs, arrowBtn) ;table.insert(objs, arrowTxt)
+        local arrowTxt = draw(makeText(">", cx + cw - 22, cy + 8, 12, Theme.AccentOn, baseZ+8, false, false))
+        trackAccent(arrowTxt)
+        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, preview)
+        table.insert(objs, arrowBtn) table.insert(objs, arrowTxt)
 
         -- ── Panel geometry: opens to the RIGHT of the whole window ───────
         -- panelX is right edge of the window + 4px gap
@@ -1044,13 +1088,13 @@ function MatchaUI.CreateWindow(opts)
             return o
         end
 
-        local panelBg = addPanelObj(draw(createRectangle(panelX, panelY, panelW, panelH + 4, Theme.DropdownBg, baseZ+50, true)))
+        local panelBg = addPanelObj(draw(makeRect(panelX, panelY, panelW, panelH + 4, Theme.DropdownBg, baseZ+50, true)))
         trackTheme("DropdownBg", panelBg)
         panelBg.Visible = false
         -- thin accent border around panel
-        local panelBorder = addPanelObj(draw(createRectangle(panelX, panelY, panelW, panelH + 4, Theme.ElementBorder, baseZ+50, false)))
+        local panelBorder = addPanelObj(draw(makeRect(panelX, panelY, panelW, panelH + 4, Theme.ElementBorder, baseZ+50, false)))
         trackTheme("ElementBorder", panelBorder)
-        panelBorder.Filled = false; panelBorder.Thickness = 1; panelBorder.Visible = false
+        panelBorder.Filled = false panelBorder.Thickness = 1 panelBorder.Visible = false
 
         -- ── Palette colors (flat hex table, same hue-ring layout as image) ──
         local PALETTE = {
@@ -1081,7 +1125,7 @@ function MatchaUI.CreateWindow(opts)
             local r2  = tonumber(hexStr:sub(1,2), 16) or 0
             local g2  = tonumber(hexStr:sub(3,4), 16) or 0
             local b2  = tonumber(hexStr:sub(5,6), 16) or 0
-            local sw  = addPanelObj(draw(createRectangle(sx, sy, swatchSz, swatchSz, Color3.fromRGB(r2,g2,b2), baseZ+52, true)))
+            local sw  = addPanelObj(draw(makeRect(sx, sy, swatchSz, swatchSz, Color3.fromRGB(r2,g2,b2), baseZ+52, true)))
             sw.Visible = false
             table.insert(paletteSwatches, {_r=sw, _x=sx, _y=sy, _w=swatchSz, _h=swatchSz,
                 _color=Color3.fromRGB(r2,g2,b2)})
@@ -1121,21 +1165,21 @@ function MatchaUI.CreateWindow(opts)
             local rowY = panelY + 4 + (ci-1) * chRowH
 
             -- Channel label ("R" / "G" / "B")
-            local lbl2 = draw(createText(ch, rsAreaX + slPad, rowY + 6, 11,
+            local lbl2 = draw(makeText(ch, rsAreaX + slPad, rowY + 6, 11,
                 Theme.TextSecondary, baseZ+52, false, false))
             lbl2.Visible = false
             addPanelObj(lbl2)
 
             -- Numeric value display
             local initV = math.floor((ch=="R" and color.R or ch=="G" and color.G or color.B) * 255)
-            local valT  = draw(createText(tostring(initV),
+            local valT  = draw(makeText(tostring(initV),
                 rsAreaX + slPad + lblW + 2, rowY + 6, 11,
                 Theme.TextPrimary, baseZ+52, false, false))
             valT.Visible = false
             addPanelObj(valT)
 
             -- Slider track background
-            local trackBg2 = draw(createRectangle(slTrackX, rowY + 8, slTrackW, 4,
+            local trackBg2 = draw(makeRect(slTrackX, rowY + 8, slTrackW, 4,
                 Theme.SliderTrack, baseZ+52, true))
             trackBg2.Visible = false
             addPanelObj(trackBg2)
@@ -1143,7 +1187,7 @@ function MatchaUI.CreateWindow(opts)
             -- Slider fill (channel-colored)
             local initPct  = initV / 255
             local initFillW = math.max(1, math.floor(slTrackW * initPct))
-            local fillRect2 = draw(createRectangle(slTrackX, rowY + 8, initFillW, 4,
+            local fillRect2 = draw(makeRect(slTrackX, rowY + 8, initFillW, 4,
                 chFillColors[ch], baseZ+53, true))
             fillRect2.Visible = false
             addPanelObj(fillRect2)
@@ -1151,7 +1195,7 @@ function MatchaUI.CreateWindow(opts)
             -- Knob
             local knobX2 = slTrackX + initFillW - knobW2/2
             local knobY2 = rowY + 3
-            local knob2  = draw(createRectangle(knobX2, knobY2, knobW2, 14,
+            local knob2  = draw(makeRect(knobX2, knobY2, knobW2, 14,
                 Theme.SliderKnob, baseZ+54, true))
             knob2.Visible = false
             addPanelObj(knob2)
@@ -1190,11 +1234,11 @@ function MatchaUI.CreateWindow(opts)
 
         -- Hex label + live preview patch (below the 3 channel rows)
         local hexLblY  = panelY + 4 + 3*chRowH + 4
-        local hexLabel = addPanelObj(draw(createText(colorToHex(color), rsAreaX + slPad, hexLblY, 10,
+        local hexLabel = addPanelObj(draw(makeText(colorToHex(color), rsAreaX + slPad, hexLblY, 10,
             Theme.TextSecondary, baseZ+52, false, false)))
         hexLabel.Visible = false
 
-        local prevPatch = addPanelObj(draw(createRectangle(rsAreaX + slPad, hexLblY + 14, rsAreaW - slPad*2, 14,
+        local prevPatch = addPanelObj(draw(makeRect(rsAreaX + slPad, hexLblY + 14, rsAreaW - slPad*2, 14,
             color, baseZ+52, true)))
         prevPatch.Visible = false
 
@@ -1202,9 +1246,10 @@ function MatchaUI.CreateWindow(opts)
 
         -- refreshAll: always reads elem.Color (set by caller before invoking)
         -- Uses a forward-ref table (_elemRef) so the closure can access elem after creation.
-        local _elemRef = {}
-        _elemRef.Color = nil
-
+        local _elemRef = {
+					Color = nil;
+				}
+				
         local function refreshAll()
             local c = _elemRef.Color or color
             preview.Color   = c
@@ -1292,23 +1337,23 @@ function MatchaUI.CreateWindow(opts)
         local cw  = contentW()
         local cy  = contentCursorY(cat)
         local objs = {}
-        local bg   = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
+        local bg   = draw(makeRect(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
         trackTheme("ElementBg", bg)
-        local lbl  = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
+        local lbl  = draw(makeText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
         trackTheme("TextSecondary", lbl)
         -- Reserve 100px on right for the value. A cover rect with same bg color hides overflow.
         local valW   = 100
-        -- local valX   = cx + cw - valW - 6  -- left edge of value area
+        local valX   = cx + cw - valW - 6  -- left edge of value area
         -- Bug fix #3: stable right edge anchor computed once from layout constants.
         -- SetValue always positions text relative to this fixed point so it never drifts.
         local valRightEdge = cx + cw - 8
-        local valCover = draw(createRectangle(cx + cw - valW - 6, cy + 1, valW + 2, ELEM_H - 2, Theme.ElementBg, baseZ+6, true))
+        local valCover = draw(makeRect(cx + cw - valW - 6, cy + 1, valW + 2, ELEM_H - 2, Theme.ElementBg, baseZ+6, true))
         trackTheme("ElementBg", valCover)
         local initStr = tostring(defaultValue or "")
         local initX   = valRightEdge - math.min(#initStr * 7, valW)
-        local valTxt  = draw(createText(initStr, initX, cy + ELEM_H/2 - 7, 13, Theme.AccentOn, baseZ+7, false, true))
-        TrackAccent(valTxt)
-        table.insert(objs, bg); table.insert(objs, lbl); table.insert(objs, valCover); table.insert(objs, valTxt)
+        local valTxt  = draw(makeText(initStr, initX, cy + ELEM_H/2 - 7, 13, Theme.AccentOn, baseZ+7, false, true))
+        trackAccent(valTxt)
+        table.insert(objs, bg) table.insert(objs, lbl) table.insert(objs, valCover) table.insert(objs, valTxt)
         registerElem(cat, objs, ELEM_H)
         local elem = {
             Type="ValueLabel", _bg=bg, _draws=objs,
@@ -1345,23 +1390,23 @@ function MatchaUI.CreateWindow(opts)
         local cy   = contentCursorY(cat)
         local visH = customVisH or math.min(innerH, 80)
         local objs = {}
-        local bg   = draw(createRectangle(cx, cy, cw, visH, Theme.InputBg, baseZ+5, true))
+        local bg   = draw(makeRect(cx, cy, cw, visH, Theme.InputBg, baseZ+5, true))
         trackTheme("InputBg", bg)
         -- clip border
-        local border = draw(createRectangle(cx, cy, cw, visH, Theme.ElementBorder, baseZ+5, false))
+        local border = draw(makeRect(cx, cy, cw, visH, Theme.ElementBorder, baseZ+5, false))
         trackTheme("ElementBorder", border)
         border.Filled = false
         border.Thickness = 1
         -- scrollbar track
         local sbX     = cx + cw - 8
-        local sbTrack = draw(createRectangle(sbX, cy, 6, visH, Theme.ScrollBar, baseZ+6, true))
+        local sbTrack = draw(makeRect(sbX, cy, 6, visH, Theme.ScrollBar, baseZ+6, true))
         trackTheme("ScrollBar", sbTrack)
         -- thumb (height proportional to content)
         local thumbH = math.max(20, math.floor(visH * visH / math.max(innerH, 1)))
-        local thumb  = draw(createRectangle(sbX, cy, 6, thumbH, Theme.ScrollThumb, baseZ+7, true))
-        TrackAccent(thumb)
-        table.insert(objs, bg); table.insert(objs, border)
-        table.insert(objs, sbTrack); table.insert(objs, thumb)
+        local thumb  = draw(makeRect(sbX, cy, 6, thumbH, Theme.ScrollThumb, baseZ+7, true))
+        trackAccent(thumb)
+        table.insert(objs, bg) table.insert(objs, border)
+        table.insert(objs, sbTrack) table.insert(objs, thumb)
         registerElem(cat, objs, visH)
 
         -- BUG 2 FIX: content width leaves room for the scrollbar so widgets never overlap it.
@@ -1390,7 +1435,7 @@ function MatchaUI.CreateWindow(opts)
             local absY   = self._y + relY
             -- BUG 2 FIX: use innerCW (captured from outer scope) so text never overlaps the scrollbar.
             local _ = innerCW  -- referenced for closure
-            local txt    = draw(createText(
+            local txt    = draw(makeText(
                 text, self._x + 6, absY, 12, Theme.TextPrimary, baseZ+8, false, false
             ))
             txt.Visible = (absY >= self._y) and (absY + self._itemH <= self._y + self._h)
@@ -1913,7 +1958,31 @@ local DEFAULT_PRESETS = {
     },
 }
 
-
+-- ─────────────────────────────────────────────────────────────
+-- ADD CONFIG PRESET
+-- ─────────────────────────────────────────────────────────────
+-- Creates a self-contained "Config" category on the window that
+-- handles everything: keybind, accent, font, full preset switching,
+-- named custom theme save/load — all auto-saved on every change and
+-- auto-loaded on call (before UiLib.Run).
+--
+-- ALL options are optional. Minimal usage:
+--   Window.AddConfigPreset({})
+--   Window.AddConfigPreset()
+--
+-- Options (all optional):
+--   toggleKeybind   handle   external keybind widget whose .Key is kept in sync.
+--                            When nil, the Config category's own keybind widget
+--                            drives window show/hide automatically via an internal
+--                            polling thread — no external setup needed.
+--   configPath      string   override default save path (default: "MatchaUI/Config.json")
+--   themesDir       string   override default themes folder (default: "MatchaUI/Themes")
+--   presets         table    built-in preset table { [name]={accent,keys...} }
+--                            when nil, the 5 built-in MatchaUI presets are used:
+--                            "Default (Lime)", "Crimson", "Ocean", "Sunset", "Monochrome"
+--
+-- The category is created, populated, and the saved config is applied
+-- before this function returns.  Call it before UiLib.Run().
 function MatchaUI.AddConfigPreset(win, opts)
     opts = opts or {}
     local CONFIG_PATH = opts.configPath or "MatchaUI/Config.json"
@@ -2310,10 +2379,10 @@ function MatchaUI.AddConfigPreset(win, opts)
     -- widget (kbWidget) IS the toggle.  A background thread polls it and
     -- shows/hides the window — identical to what ExampleUsage does externally.
     if not opts.toggleKeybind then
-        task.spawn(function()
+        spawn(function()
             local lastDown = false
             while true do
-                task.wait(0.05)
+                wait(0.05)
                 if isrbxactive() and kbWidget then
                     local down = iskeypressed(kbWidget.Key)
                     if down and not lastDown then
@@ -2333,7 +2402,13 @@ function MatchaUI.AddConfigPreset(win, opts)
     return cat
 end
 
+-- ── Attach AddConfigPreset to every window handle via CreateWindow ──
+-- We wrap it so `win.AddConfigPreset(opts)` works naturally.
+-- (registered below, after CreateWindow's win table is returned)
 
+-- Call this from a ColorPicker callback (or any time) to re-theme the
+-- entire UI to a new accent color instantly.
+-- @param color  Color3  — the new accent color
 function MatchaUI.SetAccentColor(color)
     AccentColor           = color
     Theme.CategoryActive  = color
@@ -2366,7 +2441,14 @@ function MatchaUI.SetAccentColor(color)
     end
 end
 
-
+-- ─────────────────────────────────────────────────────────────
+-- SET THEME COLOR
+-- ─────────────────────────────────────────────────────────────
+-- Change any Theme key (Background, TopBar, LeftBar, TextPrimary, etc.)
+-- and repaint all currently-visible Drawing objects that use that color.
+-- For accent-linked keys (AccentOn, SliderFill, etc.) prefer SetAccentColor.
+-- @param key    string   — Theme table key (e.g. "Background", "TopBar")
+-- @param color  Color3   — new color value
 function MatchaUI.SetThemeColor(key, color)
     if Theme[key] == nil then
         warn("MatchaUI.SetThemeColor: unknown theme key '" .. tostring(key) .. "'")
@@ -2383,7 +2465,12 @@ function MatchaUI.SetThemeColor(key, color)
     end
 end
 
-
+-- ─────────────────────────────────────────────────────────────
+-- SET FONT
+-- ─────────────────────────────────────────────────────────────
+-- Change the global font for all text Drawing objects immediately.
+-- Available font names: UI, System, SystemBold, Minecraft, Monospace, Pixel, Fortnite
+-- @param fontName  string  — one of the names listed above (case-sensitive)
 function MatchaUI.SetFont(fontName)
     local fontMap = {
         UI          = Drawing.Fonts.UI,
@@ -2427,7 +2514,7 @@ local _keyRepeatFired = {}  -- whether the key generated at least one character
 
 function MatchaUI.Run()
     while true do
-        task.wait(0.016)
+        wait(0.016)
         if not isrbxactive() then
             _lastMouse1 = false
             _mouseJustDown = false
@@ -2480,7 +2567,7 @@ function MatchaUI.Run()
                     else
                         catActive = true  -- tooltips not attached to a category (e.g. standalone)
                     end
-                    local hover = catActive and isPointInBound(mPos.X, mPos.Y, e._x, e._y, e._w, e._h)
+                    local hover = catActive and inBounds(mPos.X, mPos.Y, e._x, e._y, e._w, e._h)
                     tip._bg.Visible  = hover
                     tip._txt.Visible = hover
                     if hover then
@@ -2500,12 +2587,12 @@ function MatchaUI.Run()
                 if not win.Visible then continue end
 
                 -- Drag window (topbar)
-                if _mouseJustDown and isPointInBound(mPos.X, mPos.Y,
+                if _mouseJustDown and inBounds(mPos.X, mPos.Y,
                     win.X, win.Y, win.W, win._topBarH) then
                     -- Check it's not a button
-                    local onMin = isPointInBound(mPos.X, mPos.Y,
+                    local onMin = inBounds(mPos.X, mPos.Y,
                         win._minBtnX, win._minBtnY, win._minBtnW, win._minBtnH)
-                    local onClose = isPointInBound(mPos.X, mPos.Y,
+                    local onClose = inBounds(mPos.X, mPos.Y,
                         win._closeBtnX, win._closeBtnY, win._closeBtnW, win._closeBtnH)
                     if not onMin and not onClose then
                         win.Dragging = true
@@ -2529,11 +2616,11 @@ function MatchaUI.Run()
 
                 -- Minimize / Close
                 if _mouseJustDown then
-                    if isPointInBound(mPos.X, mPos.Y,
+                    if inBounds(mPos.X, mPos.Y,
                         win._minBtnX, win._minBtnY, win._minBtnW, win._minBtnH) then
                         win.Minimize()
                     end
-                    if isPointInBound(mPos.X, mPos.Y,
+                    if inBounds(mPos.X, mPos.Y,
                         win._closeBtnX, win._closeBtnY, win._closeBtnW, win._closeBtnH) then
                         win.SetVisible(false)
                     end
@@ -2544,7 +2631,7 @@ function MatchaUI.Run()
                 -- Category selection
                 if _mouseJustDown then
                     for _, cat in ipairs(win.Categories) do
-                        if isPointInBound(mPos.X, mPos.Y,
+                        if inBounds(mPos.X, mPos.Y,
                             cat._bg.Position.X, cat._bg.Position.Y,
                             cat._bg.Size.X, cat._bg.Size.Y) then
                             win._activateCategory(cat)
@@ -2576,7 +2663,7 @@ function MatchaUI.Run()
                                 for _, widget in ipairs(wElemWrap._widgets) do
                                     if widget._elem == elem then
                                         -- Check mouse is inside the ScrollFrame's visible rect
-                                        local insideFrame = isPointInBound(mPos.X, mPos.Y,
+                                        local insideFrame = inBounds(mPos.X, mPos.Y,
                                             wElemWrap._x, wElemWrap._y,
                                             wElemWrap._w - 8, wElemWrap._h)
                                         -- COLORPICKER EXCEPTION: if the panel is open, also allow
@@ -2585,7 +2672,7 @@ function MatchaUI.Run()
                                         -- unreachable because the gate rejects them.
                                         local insidePanel = false
                                         if elem.Type == "ColorPicker" and elem._cpOpen then
-                                            insidePanel = isPointInBound(mPos.X, mPos.Y,
+                                            insidePanel = inBounds(mPos.X, mPos.Y,
                                                 elem._panelX, elem._panelY,
                                                 elem._panelW, elem._panelH)
                                         end
@@ -2603,14 +2690,14 @@ function MatchaUI.Run()
 
                     -- BUTTON (disabled while a dropdown is open)
                     if elem.Type == "Button" and _mouseJustDown and not _choosingThisFrame then
-                        if isPointInBound(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             if elem.Callback then pcall(elem.Callback) end
                         end
                     end
 
                     -- TOGGLE (disabled while a dropdown is open)
                     if elem.Type == "Toggle" and _mouseJustDown and not _choosingThisFrame then
-                        if isPointInBound(mPos.X, mPos.Y, elem._tx, elem._ty, elem._trackW, elem._trackH) then
+                        if inBounds(mPos.X, mPos.Y, elem._tx, elem._ty, elem._trackW, elem._trackH) then
                             elem.State = not elem.State
                             elem._track.Color = elem.State and Theme.AccentOn or Theme.AccentOff
                             local kx = elem.State
@@ -2623,7 +2710,7 @@ function MatchaUI.Run()
 
                     -- CHECKBOX (disabled while a dropdown is open)
                     if elem.Type == "Checkbox" and _mouseJustDown and not _choosingThisFrame then
-                        if isPointInBound(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             elem.State = not elem.State
                             elem._check.Visible = elem.State
                             if elem.Callback then pcall(elem.Callback, elem.State) end
@@ -2633,14 +2720,14 @@ function MatchaUI.Run()
                     -- SLIDER drag start (disabled while a dropdown is open)
                     if elem.Type == "Slider" and _mouseJustDown and _sliderDrag == nil and not _choosingThisFrame then
                         -- click on track or knob
-                        if isPointInBound(mPos.X, mPos.Y, elem._trackX, elem._trackY - 6, elem._trackW, 16) then
+                        if inBounds(mPos.X, mPos.Y, elem._trackX, elem._trackY - 6, elem._trackW, 16) then
                             _sliderDrag = elem
                         end
                     end
 
                     -- DROPDOWN
                     if elem.Type == "Dropdown" and _mouseJustDown then
-                        if isPointInBound(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             -- toggle open
                             elem._isOpen = not elem._isOpen
                             if elem._isOpen then
@@ -2649,9 +2736,9 @@ function MatchaUI.Run()
                                 -- items always appear directly below the box regardless of whether
                                 -- the dropdown lives inside a ScrollFrame or was moved by dragging.
                                 local bgPos = elem._bg.Position
-                                -- local itemX  = bgPos.X + (elem._bg.Size.X - elem._w)  -- align to box right side
+                                local itemX  = bgPos.X + (elem._bg.Size.X - elem._w)  -- align to box right side
                                 -- If _boxX was stored use it, otherwise derive from _bg
-                                -- local bx = elem._boxX or bgPos.X
+                                local bx = elem._boxX or bgPos.X
                                 -- Use _bg current X + offset to find box left edge
                                 -- The box is always 122px wide aligned to the right of _bg
                                 local boxLeft = bgPos.X + elem._bg.Size.X - elem._w
@@ -2676,12 +2763,12 @@ function MatchaUI.Run()
                             elem._arrow.Text = elem._isOpen and "^" or "v"
                         elseif elem._isOpen then
                             -- check items
-                            local _hit = false
+                            local hit = false
                             for _, item in ipairs(elem._itemObjs) do
-                                if isPointInBound(mPos.X, mPos.Y, item._x, item._y, elem._w, 22) then
+                                if inBounds(mPos.X, mPos.Y, item._x, item._y, elem._w, 22) then
                                     elem.Selected      = item._value
                                     elem._selTxt.Text  = item._value
-                                    _hit = true
+                                    hit = true
                                     if elem.Callback then pcall(elem.Callback, item._value) end
                                 end
                             end
@@ -2699,7 +2786,7 @@ function MatchaUI.Run()
                     -- KEYBIND
                     if elem.Type == "Keybind" then
                         -- Arm on mouse down; only start scanning after mouse is released
-                        if _mouseJustDown and not _choosingThisFrame and isPointInBound(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                        if _mouseJustDown and not _choosingThisFrame and inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                             elem._pendingListen = true
                             elem.Listening = false
                             elem._kbTxt.Text  = "..."
@@ -2734,7 +2821,7 @@ function MatchaUI.Run()
                     -- mid-mousedown causes Matcha to ignore it for the current press.
                     if elem.Type == "TextInput" then
                         if _mouseJustDown and not _choosingThisFrame then
-                            if isPointInBound(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                            if inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
                                 -- Clicked inside this input: focus it
                                 if _focusedInput ~= elem then
                                     -- Blur the previously focused input first
@@ -2775,8 +2862,8 @@ function MatchaUI.Run()
                             for _, ch in ipairs({"R","G","B"}) do
                                 local s = cs[ch]
                                 if s then
-                                    s._lbl.Visible=state; s._val.Visible=state
-                                    s._bg.Visible=state; s._fill.Visible=state
+                                    s._lbl.Visible=state s._val.Visible=state
+                                    s._bg.Visible=state s._fill.Visible=state
                                     s._knob.Visible=state
                                 end
                             end
@@ -2785,7 +2872,7 @@ function MatchaUI.Run()
                         end
 
                         -- Toggle open/close on header click
-                        if _mouseJustDown and isPointInBound(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH) then
+                        if _mouseJustDown and inBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH) then
                             elem._cpOpen = not elem._cpOpen
                             elem._arrowTxt.Text = elem._cpOpen and "<" or ">"
                             if elem._cpOpen then
@@ -2806,7 +2893,7 @@ function MatchaUI.Run()
                                 -- Position ALL panelObjs using stored relative offsets from build time.
                                 -- This is an absolute SET — safe to call on every open without drift.
                                 local offsets = elem._panelObjOffsets or {}
-                                for _, po in ipairs(elem._panelObjs or {}) do
+                                for i, po in ipairs(elem._panelObjs or {}) do
                                     local off = offsets[i]
                                     if off then
                                         pcall(function()
@@ -2839,7 +2926,7 @@ function MatchaUI.Run()
                                     if btn._origKnobDY   then btn._knobY  = newPanelY + btn._origKnobDY  end
                                 end
 
-                                -- Update stored panel position for isPointInBound checks
+                                -- Update stored panel position for inBounds checks
                                 elem._panelX = newPanelX
                                 elem._panelY = newPanelY
 
@@ -2852,8 +2939,8 @@ function MatchaUI.Run()
                         if elem._cpOpen then
                             -- Close panel if click is outside both header and panel
                             if _mouseJustDown then
-                                local inHeader = isPointInBound(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH)
-                                local inPanel  = isPointInBound(mPos.X, mPos.Y, elem._panelX, elem._panelY, elem._panelW, elem._panelH)
+                                local inHeader = inBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH)
+                                local inPanel  = inBounds(mPos.X, mPos.Y, elem._panelX, elem._panelY, elem._panelW, elem._panelH)
                                 if not inHeader and not inPanel then
                                     elem._cpOpen = false
                                     elem._arrowTxt.Text = ">"
@@ -2864,7 +2951,7 @@ function MatchaUI.Run()
                             -- Palette swatch click
                             if _mouseJustDown then
                                 for _, sw in ipairs(elem._paletteSwatch or {}) do
-                                    if isPointInBound(mPos.X, mPos.Y, sw._x, sw._y, sw._w, sw._h) then
+                                    if inBounds(mPos.X, mPos.Y, sw._x, sw._y, sw._w, sw._h) then
                                         elem.Color = sw._color
                                         elem._refreshAll()
                                         break
@@ -2875,7 +2962,7 @@ function MatchaUI.Run()
                             -- RGB channel sliders: start drag on mousedown, update on hold
                             if _mouseJustDown and elem._cpDragCh == nil then
                                 for _, btn in ipairs(elem._btnObjs or {}) do
-                                    if btn._isSlider and isPointInBound(mPos.X, mPos.Y, btn._x, btn._y, btn._w, btn._h) then
+                                    if btn._isSlider and inBounds(mPos.X, mPos.Y, btn._x, btn._y, btn._w, btn._h) then
                                         elem._cpDragCh  = btn._ch
                                         elem._cpDragBtn = btn
                                         break
@@ -2912,7 +2999,7 @@ function MatchaUI.Run()
                         local sbW = 8   -- wider hit zone for the scrollbar (matches the track visual)
 
                         if _mouseJustDown then
-                            if isPointInBound(mPos.X, mPos.Y, sbX, elem._y, sbW, elem._h) then
+                            if inBounds(mPos.X, mPos.Y, sbX, elem._y, sbW, elem._h) then
                                 -- Clicked scrollbar track/thumb — thumb drag
                                 elem._thumbDragging    = true
                                 elem._contentDragging  = false
@@ -2921,14 +3008,14 @@ function MatchaUI.Run()
                                 local thumbMaxY  = math.max(1, elem._h - elem._thumbH)
                                 local thumbTopY  = elem._y + (elem._scrollY / maxScroll) * thumbMaxY
                                 elem._thumbDragOffY = mPos.Y - thumbTopY
-                            elseif isPointInBound(mPos.X, mPos.Y, elem._x, elem._y, elem._w - sbW, elem._h) then
+                            elseif inBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w - sbW, elem._h) then
                                 -- Check if click lands on a ColorPicker header inside this frame.
                                 -- If so, skip starting a content drag so the picker can open.
                                 local onColorPickerHeader = false
                                 for _, widget in ipairs(elem._widgets) do
                                     local wElem = widget._elem
                                     if wElem.Type == "ColorPicker" and wElem._headerX then
-                                        if isPointInBound(mPos.X, mPos.Y, wElem._headerX, wElem._headerY, wElem._headerW, wElem._headerH) then
+                                        if inBounds(mPos.X, mPos.Y, wElem._headerX, wElem._headerY, wElem._headerW, wElem._headerH) then
                                             onColorPickerHeader = true
                                             break
                                         end
@@ -3028,7 +3115,7 @@ function MatchaUI.Run()
                                     -- Compute offset of btnObjs/_channelSliders relative to header
                                     -- using the original offsets captured at build+dyFix time.
                                     local origBase = wElem._origHeaderY
-                                    local _scrollDelta = absHeaderY - origBase
+                                    local scrollDelta = absHeaderY - origBase
 
                                     -- FIX: Derive hit-test coords from panel-relative offsets (_origDY,
                                     -- _origKnobDY, _origRowDY) plus the current header absolute Y

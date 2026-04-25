@@ -3147,4 +3147,5 @@ function MatchaUI.Destroy()
   _tooltips = {}
 end
 
+_G.MatchaUI = MatchaUI
 return MatchaUI

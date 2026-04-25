@@ -101,7 +101,7 @@ local function isInBoxBounds(mx, my, x, y, w, h)
   return mx >= x and mx <= x + w and my >= y and my <= y + h
 end
 
-local function setGroupVisible(group, state)
+local function _setGroupVisible(group, state)
   for _, obj in ipairs(group) do
     if obj and obj.Remove then
       pcall(function()
@@ -128,7 +128,7 @@ local KeyNames = {
 }
 
 
-local MouseVKCodes = {
+local _MouseVKCodes = {
   [1] = true, [2] = true, [4] = true, [5] = true, [6] = true,
 }
 
@@ -193,15 +193,15 @@ function MatchaUI.CreateWindow(opts)
 
   local function draw(d) table.insert(win._draws, d); return d end
 
-  -- ── Shadow / border
+  -- Shadow / border
   local shadow = draw(createRectangle(wx-2, wy-2, ww+4, wh+4, Color3.fromHex("#000000"), baseZ, true))
   shadow.Transparency = 0.6
 
-  -- ── Main background
+  -- Main background
   local bg = draw(createRectangle(wx, wy, ww, wh, Theme.Background, baseZ+1, true))
   trackTheme("Background", bg)
 
-  -- ── TopBar
+  -- TopBar
   local topBar = draw(createRectangle(wx, wy, ww, TOPBAR_H, Theme.TopBar, baseZ+2, true))
   trackTheme("TopBar", topBar)
 
@@ -219,11 +219,11 @@ function MatchaUI.CreateWindow(opts)
   trackTheme("CloseBtn", closeBtn)
   local closeTxt  = draw(createText("X", wx + ww - 26 + 5, wy + 7, 12, Color3.fromHex("#FFFFFF"), baseZ+4, false, false))
 
-  -- ── LeftBar
+  -- LeftBar
   local leftBar = draw(createRectangle(wx, wy + TOPBAR_H, LEFTBAR_W, wh - TOPBAR_H, Theme.LeftBar, baseZ+2, true))
   trackTheme("LeftBar", leftBar)
 
-  -- ── Content area background
+  -- Content area background
   local contentBg = draw(createRectangle(wx + LEFTBAR_W, wy + TOPBAR_H, ww - LEFTBAR_W, wh - TOPBAR_H, Theme.ContentBg, baseZ+2, true))
   trackTheme("ContentBg", contentBg)
 
@@ -924,7 +924,7 @@ function MatchaUI.CreateWindow(opts)
     local cw  = contentW()
     local cy  = contentCursorY(cat)
     local key = defaultKey or 0x2D
-    local listening = false
+    local _listening = false
     local objs = {}
     local bg  = draw(createRectangle(cx, cy, cw, ELEM_H, Theme.ElementBg, baseZ+5, true))
     trackTheme("ElementBg", bg)
@@ -1221,7 +1221,7 @@ function MatchaUI.CreateWindow(opts)
     local lbl  = draw(createText(labelText, cx + 8, cy + ELEM_H/2 - 7, 12, Theme.TextSecondary, baseZ+6, false, true))
     trackTheme("TextSecondary", lbl)
     local valW   = 100
-    local valX   = cx + cw - valW - 6
+    local _valX   = cx + cw - valW - 6
     local valRightEdge = cx + cw - 8
     local valCover = draw(createRectangle(cx + cw - valW - 6, cy + 1, valW + 2, ELEM_H - 2, Theme.ElementBg, baseZ+6, true))
     trackTheme("ElementBg", valCover)
@@ -1547,7 +1547,7 @@ local NOTIF_INNER_W = NOTIF_W - 16   -- 8px padding each side
 -- Approximate character width at size 12 (Monospace). Used for word-wrap.
 local NOTIF_CHAR_W  = 7
 
--- Notifications spawn at top-left (50, 50) and stack downward.
+-- Notifications task.spawn at top-left (50, 50) and stack downward.
 local NOTIF_START_X = 50
 local NOTIF_START_Y = 150
 
@@ -1973,7 +1973,7 @@ end
             local selKey = ddThemeKey.Selected or THEME_SLOT_KEYS[1]
             local liveColor = Theme and Theme[selKey]
             if liveColor then
-                cpThemeKey.Color = liveColor
+              cpThemeKey.Color = liveColor
                 if cpThemeKey._preview  then cpThemeKey._preview.Color  = liveColor end
                 if cpThemeKey._prevPatch then cpThemeKey._prevPatch.Color = liveColor end
             end
@@ -2151,10 +2151,10 @@ end
     -- widget (kbWidget) IS the toggle.  A background thread polls it and
     -- shows/hides the window — identical to what ExampleUsage does externally.
     if not opts.toggleKeybind then
-        spawn(function()
+        task.spawn(function()
             local lastDown = false
             while true do
-                wait(0.05)
+                task.wait(0.05)
                 if isrbxactive() and kbWidget then
                     local down = iskeypressed(kbWidget.Key)
                     if down and not lastDown then
@@ -2220,6 +2220,7 @@ end
 -- For accent-linked keys (AccentOn, SliderFill, etc.) prefer SetAccentColor.
 -- @param key    string   — Theme table key (e.g. "Background", "TopBar")
 -- @param color  Color3   — new color value
+
 function MatchaUI.SetThemeColor(key, color)
   if Theme[key] == nil then
     warn("MatchaUI.SetThemeColor: unknown theme key '" .. tostring(key) .. "'")
@@ -2274,6 +2275,19 @@ do
   end
 end
 
+MatchaUI.CreateWindow()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2289,849 +2303,877 @@ local _prevHeldKeys   = {}  -- VK keys held last frame (for edge detection in te
 local _keyRepeatTimer = {}  -- per-key hold timer (seconds)
 local _keyRepeatFired = {}  -- whether the key generated at least one character
 
-
+local RunService = game:GetService("RunService")
 
 --#endregion
-
 function MatchaUI.Run()
-    while true do
-        wait(0.016)
-        if not isrbxactive() then
-            _lastMouse1 = false
-            _mouseJustDown = false
-            _mouseJustUp   = false
+  RunService.RenderStepped:Connect(function()
+    if not isrbxactive() then
+      _lastMouse1 = false
+      _mouseJustDown = false
+      _mouseJustUp   = false
+    else
+      local mouse1   = ismouse1pressed()
+      local mPos     = Vector2.new(Mouse.X, Mouse.Y)
+      _mouseJustDown = mouse1 and not _lastMouse1
+      _mouseJustUp   = not mouse1 and _lastMouse1
+
+      -- ── Cursor blink for focused inputs
+      _cursorBlink = _cursorBlink + 0.016
+      if _focusedInput and _focusedInput._cursor then
+        _focusedInput._cursor.Visible = (_cursorBlink % 1) < 0.5
+      end
+
+      -- ── Notifications: tick down and shrink bar
+      local i = 1
+      while i <= #_notifs do
+        local n = _notifs[i]
+        n._timer = n._timer + 0.016
+        local pct = 1 - (n._timer / n._duration)
+        n._bar.Size = Vector2.new(math.max(0, NOTIF_W * pct), 4)
+
+        if n._timer >= n._duration then
+          n._bg:Remove()
+          n._title:Remove()
+          for _, lObj in ipairs(n._msgLines) do
+            lObj:Remove()
+          end
+          n._bar:Remove()
+          table.remove(_notifs, i)
+          _layoutNotifs()
         else
-            local mouse1   = ismouse1pressed()
-            local mPos     = Vector2.new(Mouse.X, Mouse.Y)
-            _mouseJustDown = mouse1 and not _lastMouse1
-            _mouseJustUp   = not mouse1 and _lastMouse1
-
-            -- ── Cursor blink for focused inputs
-            _cursorBlink = _cursorBlink + 0.016
-            if _focusedInput and _focusedInput._cursor then
-                _focusedInput._cursor.Visible = (_cursorBlink % 1) < 0.5
-            end
-
-            -- ── Notifications: tick down and shrink bar
-            local i = 1
-            while i <= #_notifs do
-                local n = _notifs[i]
-                n._timer = n._timer + 0.016
-                local pct = 1 - (n._timer / n._duration)
-                n._bar.Size = Vector2.new(math.max(0, NOTIF_W * pct), 4)
-                if n._timer >= n._duration then
-                    n._bg:Remove()
-                    n._title:Remove()
-                    for _, lObj in ipairs(n._msgLines) do lObj:Remove() end
-                    n._bar:Remove()
-                    table.remove(_notifs, i)
-                    _layoutNotifs()
-                else
-                    i = i + 1
-                end
-            end
-
-            -- ── Tooltip handling
-            for _, tip in ipairs(_tooltips) do
-                local e = tip._elem
-                if e and e._x then
-                    -- Bug fix #1: only show tooltip when the element's category is
-                    -- the active one in its window AND the window itself is visible.
-                    local catActive = false
-                    if e._cat then
-                        for _, w in ipairs(_windows) do
-                            if w.Visible and not w.Minimized and w.ActiveCat == e._cat then
-                                catActive = true
-                                break
-                            end
-                        end
-                    else
-                        catActive = true  -- tooltips not attached to a category (e.g. standalone)
-                    end
-                    local hover = catActive and isInBoxBounds(mPos.X, mPos.Y, e._x, e._y, e._w, e._h)
-                    tip._bg.Visible  = hover
-                    tip._txt.Visible = hover
-                    if hover then
-                        tip._bg.Position  = Vector2.new(mPos.X + 12, mPos.Y - 24)
-                        tip._txt.Position = Vector2.new(mPos.X + 18, mPos.Y - 20)
-                    end
-                end
-            end
-
-            -- ── Per-window processing
-            -- Snapshot Choosing ONCE before any element mutates it this frame.
-            -- This prevents a dropdown close (Choosing→false) mid-loop from
-            -- accidentally allowing other elements to react on the same click.
-            local _choosingThisFrame = MatchaUI.Choosing
-
-            for _, win in ipairs(_windows) do
-                if not win.Visible then continue end
-
-                -- Drag window (topbar)
-                if _mouseJustDown and isInBoxBounds(mPos.X, mPos.Y,
-                    win.X, win.Y, win.W, win._topBarH) then
-                    -- Check it's not a button
-                    local onMin = isInBoxBounds(mPos.X, mPos.Y,
-                        win._minBtnX, win._minBtnY, win._minBtnW, win._minBtnH)
-                    local onClose = isInBoxBounds(mPos.X, mPos.Y,
-                        win._closeBtnX, win._closeBtnY, win._closeBtnW, win._closeBtnH)
-                    if not onMin and not onClose then
-                        win.Dragging = true
-                        win.DragOffX = mPos.X - win.X
-                        win.DragOffY = mPos.Y - win.Y
-                    end
-                end
-                if _mouseJustUp then
-                    win.Dragging = false
-                end
-                if win.Dragging and mouse1 then
-                    local nx = mPos.X - win.DragOffX
-                    local ny = mPos.Y - win.DragOffY
-                    win.Reposition(nx, ny)
-                    -- Update stored button positions
-                    win._minBtnX   = nx + win.W - 52
-                    win._minBtnY   = ny + 6
-                    win._closeBtnX = nx + win.W - 26
-                    win._closeBtnY = ny + 6
-                end
-
-                -- Minimize / Close
-                if _mouseJustDown then
-                    if isInBoxBounds(mPos.X, mPos.Y,
-                        win._minBtnX, win._minBtnY, win._minBtnW, win._minBtnH) then
-                        win.Minimize()
-                    end
-                    if isInBoxBounds(mPos.X, mPos.Y,
-                        win._closeBtnX, win._closeBtnY, win._closeBtnW, win._closeBtnH) then
-                        win.SetVisible(false)
-                    end
-                end
-
-                if win.Minimized then continue end
-
-                -- Category selection
-                if _mouseJustDown then
-                    for _, cat in ipairs(win.Categories) do
-                        if isInBoxBounds(mPos.X, mPos.Y,
-                            cat._bg.Position.X, cat._bg.Position.Y,
-                            cat._bg.Size.X, cat._bg.Size.Y) then
-                            win._activateCategory(cat)
-                        end
-                    end
-                end
-
-                -- Element interactions
-                for _, elem in ipairs(win._elements) do
-                    -- Only process elements belonging to the active category
-                    if elem._cat ~= win.ActiveCat then continue end
-                    -- Visibility gate:
-                    -- • Normal elements: skip if their own background is hidden.
-                    -- • Elements inside a ScrollFrame (_inScrollFrame=true): their _bg
-                    --   is clipped by the frame, so we skip this check — the frame's
-                    --   own _bg being visible (guaranteed because it's a cat element) is
-                    --   sufficient. Hit-testing against elem._x/_y/_w/_h still prevents
-                    --   clicks on scrolled-out widgets.
-                    if not elem._inScrollFrame then
-                        if not elem._bg or not elem._bg.Visible then continue end
-                    else
-                        -- BUG 1 FIX: for widgets inside a ScrollFrame, find the owning frame
-                        -- and gate all interaction on the mouse being inside the frame's
-                        -- visible bounds. Without this, elements respond to clicks even when
-                        -- they are scrolled out of view (and thus invisible).
-                        local inFrame = false
-                        for _, wElemWrap in ipairs(win._elements) do
-                            if wElemWrap.Type == "ScrollFrame" then
-                                for _, widget in ipairs(wElemWrap._widgets) do
-                                    if widget._elem == elem then
-                                        -- Check mouse is inside the ScrollFrame's visible rect
-                                        local insideFrame = isInBoxBounds(mPos.X, mPos.Y,
-                                            wElemWrap._x, wElemWrap._y,
-                                            wElemWrap._w - 8, wElemWrap._h)
-                                        -- COLORPICKER EXCEPTION: if the panel is open, also allow
-                                        -- clicks inside the floating panel (which lives outside the
-                                        -- frame bounds). Without this, swatches and sliders are
-                                        -- unreachable because the gate rejects them.
-                                        local insidePanel = false
-                                        if elem.Type == "ColorPicker" and elem._cpOpen then
-                                            insidePanel = isInBoxBounds(mPos.X, mPos.Y,
-                                                elem._panelX, elem._panelY,
-                                                elem._panelW, elem._panelH)
-                                        end
-                                        inFrame = insideFrame or insidePanel
-                                        break
-                                    end
-                                end
-                                if inFrame ~= false then break end
-                            end
-                        end
-                        -- inFrame is false only when found but outside bounds; nil means not
-                        -- found (shouldn't happen). Either way, skip if not within frame.
-                        if not inFrame then continue end
-                    end
-
-                    -- BUTTON (disabled while a dropdown is open)
-                    if elem.Type == "Button" and _mouseJustDown and not _choosingThisFrame then
-                        if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
-                            if elem.Callback then pcall(elem.Callback) end
-                        end
-                    end
-
-                    -- TOGGLE (disabled while a dropdown is open)
-                    if elem.Type == "Toggle" and _mouseJustDown and not _choosingThisFrame then
-                        if isInBoxBounds(mPos.X, mPos.Y, elem._tx, elem._ty, elem._trackW, elem._trackH) then
-                            elem.State = not elem.State
-                            elem._track.Color = elem.State and Theme.AccentOn or Theme.AccentOff
-                            local kx = elem.State
-                                and (elem._tx + elem._trackW - elem._knobSz - 2)
-                                or  (elem._tx + 2)
-                            elem._knob.Position = Vector2.new(kx, elem._ty + 2)
-                            if elem.Callback then pcall(elem.Callback, elem.State) end
-                        end
-                    end
-
-                    -- CHECKBOX (disabled while a dropdown is open)
-                    if elem.Type == "Checkbox" and _mouseJustDown and not _choosingThisFrame then
-                        if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
-                            elem.State = not elem.State
-                            elem._check.Visible = elem.State
-                            if elem.Callback then pcall(elem.Callback, elem.State) end
-                        end
-                    end
-
-                    -- SLIDER drag start (disabled while a dropdown is open)
-                    if elem.Type == "Slider" and _mouseJustDown and _sliderDrag == nil and not _choosingThisFrame then
-                        -- click on track or knob
-                        if isInBoxBounds(mPos.X, mPos.Y, elem._trackX, elem._trackY - 6, elem._trackW, 16) then
-                            _sliderDrag = elem
-                        end
-                    end
-
-                    -- DROPDOWN
-                    if elem.Type == "Dropdown" and _mouseJustDown then
-                        if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
-                            -- toggle open
-                            elem._isOpen = not elem._isOpen
-                            if elem._isOpen then
-                                MatchaUI.Choosing = true
-                                -- Recalculate item positions from the current _bg position so
-                                -- items always appear directly below the box regardless of whether
-                                -- the dropdown lives inside a ScrollFrame or was moved by dragging.
-                                local bgPos = elem._bg.Position
-                                local itemX  = bgPos.X + (elem._bg.Size.X - elem._w)  -- align to box right side
-                                -- If _boxX was stored use it, otherwise derive from _bg
-                                local bx = elem._boxX or bgPos.X
-                                -- Use _bg current X + offset to find box left edge
-                                -- The box is always 122px wide aligned to the right of _bg
-                                local boxLeft = bgPos.X + elem._bg.Size.X - elem._w
-                                local boxTop  = bgPos.Y + elem._h
-                                for _, item in ipairs(elem._itemObjs) do
-                                    local iy = boxTop + (item._idx - 1) * 22
-                                    item._bg.Position  = Vector2.new(boxLeft, iy)
-                                    item._txt.Position = Vector2.new(boxLeft + 4, iy + 4)
-                                    -- Update hit-test coords
-                                    item._x = boxLeft
-                                    item._y = iy
-                                    item._bg.Visible  = true
-                                    item._txt.Visible = true
-                                end
-                            else
-                                MatchaUI.Choosing = false
-                                for _, item in ipairs(elem._itemObjs) do
-                                    item._bg.Visible  = false
-                                    item._txt.Visible = false
-                                end
-                            end
-                            elem._arrow.Text = elem._isOpen and "^" or "v"
-                        elseif elem._isOpen then
-                            -- check items
-                            local hit = false
-                            for _, item in ipairs(elem._itemObjs) do
-                                if isInBoxBounds(mPos.X, mPos.Y, item._x, item._y, elem._w, 22) then
-                                    elem.Selected      = item._value
-                                    elem._selTxt.Text  = item._value
-                                    hit = true
-                                    if elem.Callback then pcall(elem.Callback, item._value) end
-                                end
-                            end
-                            -- close
-                            elem._isOpen = false
-                            MatchaUI.Choosing = false
-                            elem._arrow.Text = "v"
-                            for _, item in ipairs(elem._itemObjs) do
-                                item._bg.Visible  = false
-                                item._txt.Visible = false
-                            end
-                        end
-                    end
-
-                    -- KEYBIND
-                    if elem.Type == "Keybind" then
-                        -- Arm on mouse down; only start scanning after mouse is released
-                        if _mouseJustDown and not _choosingThisFrame and isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
-                            elem._pendingListen = true
-                            elem.Listening = false
-                            elem._kbTxt.Text  = "..."
-                            elem._kbTxt.Color = Theme.AccentOn
-                        end
-                        if elem._pendingListen and _mouseJustUp then
-                            elem._pendingListen = false
-                            elem.Listening = true
-                        end
-                        if elem.Listening then
-                            -- Bug fix #2: iterate only over explicitly allowed keyboard VK codes.
-                            -- This prevents mouse button releases (VK 1/2/4/5/6) and any other
-                            -- unmappable codes from ever being registered as a keybind.
-                            for k, _ in pairs(VALID_KEYBIND_KEYS) do
-                                if iskeypressed(k) then
-                                    elem.Key       = k
-                                    elem.Listening  = false
-                                    local name = KeyNames[k] or "?"
-                                    elem._kbTxt.Text  = "[ " .. name .. " ]"
-                                    elem._kbTxt.Color = Theme.TextPrimary
-                                    if elem.Callback then pcall(elem.Callback, k, name) end
-                                    break
-                                end
-                            end
-                        end
-                    end
-
-                    -- TEXT INPUT / SEARCH BAR
-                    -- Focus is set on _mouseJustDown (for responsiveness).
-                    -- setrobloxinput(false) is deferred to _mouseJustUp so it takes effect
-                    -- AFTER the click that initiated focus is fully released — calling it
-                    -- mid-mousedown causes Matcha to ignore it for the current press.
-                    if elem.Type == "TextInput" then
-                        if _mouseJustDown and not _choosingThisFrame then
-                            if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
-                                -- Clicked inside this input: focus it
-                                if _focusedInput ~= elem then
-                                    -- Blur the previously focused input first
-                                    if _focusedInput then
-                                        _focusedInput.Focused = false
-                                        if _focusedInput._cursor then _focusedInput._cursor.Visible = false end
-                                    end
-                                    _focusedInput = elem
-                                    elem.Focused  = true
-                                    _cursorBlink  = 0
-                                    if elem._inputBg then elem._inputBg.Color = Theme.InputBg end
-                                    -- setrobloxinput(false) deferred to _mouseJustUp below
-                                end
-                            elseif elem == _focusedInput then
-                                -- Clicked outside a currently-focused input: blur it
-                                _focusedInput = nil
-                                elem.Focused  = false
-                                if elem._cursor then elem._cursor.Visible = false end
-                                setrobloxinput(true)
-                            end
-                        end
-                        -- Deferred setrobloxinput(false): fires on mouse-release of the
-                        -- click that focused this input, so Matcha honours it correctly.
-                        if _mouseJustUp and elem == _focusedInput then
-                            setrobloxinput(false)
-                        end
-                    end
-
-                    -- COLOR PICKER: header click toggles panel, palette swatch click, +/- steppers
-                    if elem.Type == "ColorPicker" then
-                        local function setPanelVis(state)
-                            elem._panelBg.Visible     = state
-                            elem._panelBorder.Visible = state
-                            for _, sw in ipairs(elem._paletteSwatch or {}) do
-                                pcall(function() sw._r.Visible = state end)
-                            end
-                            local cs = elem._channelSliders or {}
-                            for _, ch in ipairs({"R","G","B"}) do
-                                local s = cs[ch]
-                                if s then
-                                    s._lbl.Visible=state s._val.Visible=state
-                                    s._bg.Visible=state s._fill.Visible=state
-                                    s._knob.Visible=state
-                                end
-                            end
-                            elem._hexLabel.Visible  = state
-                            elem._prevPatch.Visible = state
-                        end
-
-                        -- Toggle open/close on header click
-                        if _mouseJustDown and isInBoxBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH) then
-                            elem._cpOpen = not elem._cpOpen
-                            elem._arrowTxt.Text = elem._cpOpen and "<" or ">"
-                            if elem._cpOpen then
-                                -- Recalculate panel position from the current _bg screen position.
-                                -- This is required when the ColorPicker lives inside a ScrollFrame:
-                                -- the _bg has been shifted by AddWidget + scroll, but panelX/panelY
-                                -- were baked in at build time using the raw category cursor position.
-                                local bgPos  = elem._bg.Position
-                                local newPanelX = win.X + win.W + 4
-                                local newPanelY = bgPos.Y  -- vertically aligned with the header row
-
-                                -- SET panel background and border to absolute position
-                                pcall(function()
-                                    elem._panelBg.Position     = Vector2.new(newPanelX, newPanelY)
-                                    elem._panelBorder.Position = Vector2.new(newPanelX, newPanelY)
-                                end)
-
-                                -- Position ALL panelObjs using stored relative offsets from build time.
-                                -- This is an absolute SET — safe to call on every open without drift.
-                                local offsets = elem._panelObjOffsets or {}
-                                for i, po in ipairs(elem._panelObjs or {}) do
-                                    local off = offsets[i]
-                                    if off then
-                                        pcall(function()
-                                            po.Position = Vector2.new(newPanelX + off.dx, newPanelY + off.dy)
-                                        end)
-                                    end
-                                end
-
-                                -- SET swatch hit-test coords absolutely from panel origin
-                                for _, sw in ipairs(elem._paletteSwatch or {}) do
-                                    if sw._origDX then
-                                        sw._x = newPanelX + sw._origDX
-                                        sw._y = newPanelY + sw._origDY
-                                    end
-                                end
-
-                                -- SET channel slider hit-test coords absolutely
-                                local cs = elem._channelSliders or {}
-                                for _, s in pairs(cs) do
-                                    if s._origTrackDX then s._trackX = newPanelX + s._origTrackDX end
-                                    if s._origKnobDY  then s._knobY  = newPanelY + s._origKnobDY  end
-                                    if s._origRowDY   then s._rowY   = newPanelY + s._origRowDY   end
-                                end
-
-                                -- SET btnObjs hit-test coords absolutely
-                                for _, btn in ipairs(elem._btnObjs or {}) do
-                                    if btn._origDX       then btn._x      = newPanelX + btn._origDX      end
-                                    if btn._origDY       then btn._y      = newPanelY + btn._origDY      end
-                                    if btn._origTrackDX  then btn._trackX = newPanelX + btn._origTrackDX end
-                                    if btn._origKnobDY   then btn._knobY  = newPanelY + btn._origKnobDY  end
-                                end
-
-                                -- Update stored panel position for isInBoxBounds checks
-                                elem._panelX = newPanelX
-                                elem._panelY = newPanelY
-
-                                setPanelVis(true)
-                            else
-                                setPanelVis(false)
-                            end
-                        end
-
-                        if elem._cpOpen then
-                            -- Close panel if click is outside both header and panel
-                            if _mouseJustDown then
-                                local inHeader = isInBoxBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH)
-                                local inPanel  = isInBoxBounds(mPos.X, mPos.Y, elem._panelX, elem._panelY, elem._panelW, elem._panelH)
-                                if not inHeader and not inPanel then
-                                    elem._cpOpen = false
-                                    elem._arrowTxt.Text = ">"
-                                    setPanelVis(false)
-                                end
-                            end
-
-                            -- Palette swatch click
-                            if _mouseJustDown then
-                                for _, sw in ipairs(elem._paletteSwatch or {}) do
-                                    if isInBoxBounds(mPos.X, mPos.Y, sw._x, sw._y, sw._w, sw._h) then
-                                        elem.Color = sw._color
-                                        elem._refreshAll()
-                                        break
-                                    end
-                                end
-                            end
-
-                            -- RGB channel sliders: start drag on mousedown, update on hold
-                            if _mouseJustDown and elem._cpDragCh == nil then
-                                for _, btn in ipairs(elem._btnObjs or {}) do
-                                    if btn._isSlider and isInBoxBounds(mPos.X, mPos.Y, btn._x, btn._y, btn._w, btn._h) then
-                                        elem._cpDragCh  = btn._ch
-                                        elem._cpDragBtn = btn
-                                        break
-                                    end
-                                end
-                            end
-
-                            -- Update dragged channel slider every frame while mouse held
-                            if elem._cpDragCh and mouse1 then
-                                local btn2 = elem._cpDragBtn
-                                local relX = math.max(0, math.min(mPos.X - btn2._trackX, btn2._trackW))
-                                local pct2 = relX / btn2._trackW
-                                local newV = math.floor(pct2 * 255)
-                                local c = elem.Color
-                                local rv = math.floor(c.R*255)
-                                local gv = math.floor(c.G*255)
-                                local bv = math.floor(c.B*255)
-                                if elem._cpDragCh == "R" then rv = newV
-                                elseif elem._cpDragCh == "G" then gv = newV
-                                else bv = newV end
-                                elem.Color = Color3.fromRGB(rv, gv, bv)
-                                elem._refreshAll()
-                            elseif not mouse1 then
-                                elem._cpDragCh  = nil
-                                elem._cpDragBtn = nil
-                            end
-                        end
-                    end
-
-                    -- SCROLL FRAME: content drag (anywhere in frame) + scrollbar thumb drag
-                    if elem.Type == "ScrollFrame" then
-                        -- Always derive sbX from elem._sbX (kept in sync by reposition)
-                        local sbX = elem._sbX
-                        local sbW = 8   -- wider hit zone for the scrollbar (matches the track visual)
-
-                        if _mouseJustDown then
-                            if isInBoxBounds(mPos.X, mPos.Y, sbX, elem._y, sbW, elem._h) then
-                                -- Clicked scrollbar track/thumb — thumb drag
-                                elem._thumbDragging    = true
-                                elem._contentDragging  = false
-                                -- Record offset from thumb top so thumb doesn't jump on first frame
-                                local maxScroll  = math.max(1, elem._innerH - elem._h)
-                                local thumbMaxY  = math.max(1, elem._h - elem._thumbH)
-                                local thumbTopY  = elem._y + (elem._scrollY / maxScroll) * thumbMaxY
-                                elem._thumbDragOffY = mPos.Y - thumbTopY
-                            elseif isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w - sbW, elem._h) then
-                                -- Check if click lands on a ColorPicker header inside this frame.
-                                -- If so, skip starting a content drag so the picker can open.
-                                local onColorPickerHeader = false
-                                for _, widget in ipairs(elem._widgets) do
-                                    local wElem = widget._elem
-                                    if wElem.Type == "ColorPicker" and wElem._headerX then
-                                        if isInBoxBounds(mPos.X, mPos.Y, wElem._headerX, wElem._headerY, wElem._headerW, wElem._headerH) then
-                                            onColorPickerHeader = true
-                                            break
-                                        end
-                                    end
-                                end
-                                if not onColorPickerHeader then
-                                    -- Clicked content area — content drag
-                                    elem._contentDragging       = true
-                                    elem._thumbDragging         = false
-                                    elem._contentDragStartY     = mPos.Y
-                                    elem._contentDragStartScroll = elem._scrollY
-                                end
-                            end
-                        end
-
-                        if _mouseJustUp then
-                            elem._thumbDragging   = false
-                            elem._contentDragging = false
-                        end
-
-                        if elem._thumbDragging and mouse1 then
-                            local maxScroll = math.max(1, elem._innerH - elem._h)
-                            local thumbMaxY = math.max(1, elem._h - elem._thumbH)
-                            -- rawY is the desired thumb top in screen space
-                            local rawY     = mPos.Y - elem._thumbDragOffY
-                            -- clamp to [elem._y, elem._y + thumbMaxY]
-                            local clampedY = math.max(elem._y, math.min(elem._y + thumbMaxY, rawY))
-                            -- position thumb at correct X (sbX) and clamped Y
-                            elem._thumb.Position = Vector2.new(sbX, clampedY)
-                            local pct      = (clampedY - elem._y) / thumbMaxY
-                            elem._scrollY  = pct * maxScroll
-                            if elem.Callback then pcall(elem.Callback, elem._scrollY) end
-                        end
-
-                        if elem._contentDragging and mouse1 then
-                            local maxScroll = math.max(0, elem._innerH - elem._h)
-                            -- Drag DOWN  → mPos.Y increases → dy positive → scroll DOWN (higher _scrollY)
-                            local dy = mPos.Y - elem._contentDragStartY
-                            -- Content moves with finger: dragging down reveals items above (scroll up)
-                            -- so invert: dragging down = negative scroll delta
-                            local newScroll = math.max(0, math.min(maxScroll,
-                                elem._contentDragStartScroll - dy))
-                            elem._scrollY = newScroll
-                            -- Sync thumb
-                            local thumbMaxY = math.max(1, elem._h - elem._thumbH)
-                            local pct = maxScroll > 0 and newScroll / maxScroll or 0
-                            elem._thumb.Position = Vector2.new(sbX, elem._y + pct * thumbMaxY)
-                            if elem.Callback then pcall(elem.Callback, elem._scrollY) end
-                        end
-
-                        -- Reposition and clip item text rows every frame
-                        if elem._items then
-                            for _, item in ipairs(elem._items) do
-                                local absY = elem._y + item._relY - elem._scrollY
-                                item._txt.Position = Vector2.new(elem._x + 6, absY)
-                                local itemH = elem._itemH or 18
-                                item._txt.Visible  = (absY >= elem._y)
-                                    and (absY + itemH <= elem._y + elem._h)
-                            end
-                        end
-                        -- Reposition and clip widget draw objects every frame
-                        if elem._widgets then
-                            for _, widget in ipairs(elem._widgets) do
-                                local baseAbsY = elem._y + widget._relY - elem._scrollY
-                                local wElem    = widget._elem
-                                local wHeight  = widget._h or ELEM_H
-
-                                -- Compute dy as delta from last known _y to new absolute position.
-                                -- IMPORTANT: dy is used only to SHIFT draw objects. Hit-test coords
-                                -- for ColorPicker are SET absolutely below to avoid drift.
-                                local dy = baseAbsY - (wElem._y or baseAbsY)
-
-                                -- Shift element descriptor Y fields (used for generic hit-testing)
-                                if wElem._y      then wElem._y      = wElem._y      + dy end
-                                if wElem._ty     then wElem._ty     = wElem._ty     + dy end
-                                if wElem._trackY then wElem._trackY = wElem._trackY + dy end
-
-                                -- BUG 4 FIX: keep Dropdown item hit-test _y in sync with scroll.
-                                if wElem.Type == "Dropdown" and wElem._itemObjs then
-                                    for _, item in ipairs(wElem._itemObjs) do
-                                        if item._y then item._y = item._y + dy end
-                                    end
-                                end
-
-                                -- ColorPicker: SET hit-test coords absolutely from relY each frame.
-                                -- Never accumulate — accumulated dy causes unbounded offset drift.
-                                if wElem.Type == "ColorPicker" and wElem._origHeaderY then
-                                    -- How far has the frame scrolled since the widget was built?
-                                    -- scrollDelta = current scrollY (baseAbsY already accounts for it)
-                                    -- The header's absolute Y is simply baseAbsY (frame top + relY - scroll).
-                                    local absHeaderY = baseAbsY  -- same as elem._y + relY - scrollY
-
-                                    -- SET (not add) all ColorPicker hit-test Y coords
-                                    wElem._headerY = absHeaderY
-                                    wElem._y       = absHeaderY  -- keep in sync with generic _y too
-
-                                    -- Compute offset of btnObjs/_channelSliders relative to header
-                                    -- using the original offsets captured at build+dyFix time.
-                                    local origBase = wElem._origHeaderY
-                                    local scrollDelta = absHeaderY - origBase
-
-                                    -- FIX: Derive hit-test coords from panel-relative offsets (_origDY,
-                                    -- _origKnobDY, _origRowDY) plus the current header absolute Y
-                                    -- (baseAbsY). This avoids the lazy-init corruption where _origY
-                                    -- was captured from btn._y AFTER a window drag had already shifted
-                                    -- it, causing a permanent Y offset equal to the drag distance.
-                                    for _, btn in ipairs(wElem._btnObjs or {}) do
-                                        if btn._origDY     then btn._y    = baseAbsY + btn._origDY     end
-                                        if btn._origKnobDY then btn._knobY = baseAbsY + btn._origKnobDY end
-                                    end
-
-                                    local cs2 = wElem._channelSliders or {}
-                                    for _, s2 in pairs(cs2) do
-                                        if s2._origKnobDY then s2._knobY = baseAbsY + s2._origKnobDY end
-                                        if s2._origRowDY  then s2._rowY  = baseAbsY + s2._origRowDY  end
-                                    end
-                                end
-                                local pSet = widget._panelObjSet or {}
-                                for _, obj in ipairs(widget._objs) do
-                                    -- Panel/popup objects (ColorPicker popup, Dropdown items) float
-                                    -- outside the frame. Skip them here — open/close toggle manages
-                                    -- their visibility; we must never force them visible via clipping.
-                                    if pSet[obj] then continue end
-                                    pcall(function()
-                                        obj.Position = obj.Position + Vector2.new(0, dy)
-                                        local oY = obj.Position.Y
-                                        -- Use full widget height for bottom clipping so the last
-                                        -- element doesn't bleed past the frame's lower edge.
-                                        obj.Visible = (oY >= elem._y)
-                                            and (oY + wHeight <= elem._y + elem._h)
-                                    end)
-                                end
-                                -- Post-clip corrections for sub-objects whose visibility
-                                -- depends on element state, not just position:
-                                if wElem.Type == "Checkbox" and wElem._check then
-                                    -- Clipping unconditionally showed _check; honour State.
-                                    if wElem._check.Visible then
-                                        wElem._check.Visible = wElem.State
-                                    end
-                                end
-                                -- TextInput: cursor must only be visible when the input is focused.
-                                -- The clipping pass sets Visible=true based on position alone,
-                                -- which makes the cursor appear even when nobody is typing.
-                                if wElem.Type == "TextInput" and wElem._cursor then
-                                    if wElem._cursor.Visible and not wElem.Focused then
-                                        wElem._cursor.Visible = false
-                                    end
-                                end
-                                if wElem.Type == "ColorPicker" and not wElem._cpOpen then
-                                    -- Clipping may have revealed panel objs that slipped
-                                    -- through; force them closed if panel is not open.
-                                    if wElem._panelObjs then
-                                        for _, po in ipairs(wElem._panelObjs) do
-                                            pcall(function() po.Visible = false end)
-                                        end
-                                    end
-                                elseif wElem.Type == "ColorPicker" and wElem._cpOpen then
-                                    -- Panel is open: the clipping pass may have incorrectly
-                                    -- hidden panel objects because they sit outside the frame
-                                    -- bounds. Since panelObjs are in panelObjSet the clipping
-                                    -- loop skips them, but setPanelVis already set them visible
-                                    -- on open — no extra work needed here. This branch is a
-                                    -- safety guard only: re-assert visibility.
-                                    if wElem._panelObjs then
-                                        for _, po in ipairs(wElem._panelObjs) do
-                                            pcall(function() po.Visible = true end)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- ── Slider drag update (global, disabled while a dropdown is open)
-                if _sliderDrag and not MatchaUI.Choosing then
-                    if mouse1 then
-                        local e    = _sliderDrag
-                        local relX = math.max(0, math.min(mPos.X - e._trackX, e._trackW))
-                        local pct  = relX / e._trackW
-                        local val  = e.Min + (e.Max - e.Min) * pct
-                        e.Value    = val
-                        e._valLbl.Text = tostring(math.floor(val))
-                        e._fillRect.Size = Vector2.new(math.max(1, relX), 4)
-                        e._knob.Position = Vector2.new(e._trackX + relX - e._knobW/2, e._trackY - 5)
-                        if e.Callback then pcall(e.Callback, val) end
-                    else
-                        _sliderDrag = nil
-                    end
-                end
-            end
-
-            -- ── Text input character handling (for focused input)
-            -- Uses iskeypressed() polling with per-key edge detection + auto-repeat.
-            -- iskeypressed() is the correct Matcha API; getpressedkeys() does not exist.
-            if _focusedInput then
-                local elem = _focusedInput
-
-                -- Helper: update the displayed text and cursor position
-                local function refreshInputDisplay()
-                    local displayText = elem.Text == "" and elem._placeholder or elem.Text
-                    elem._inputTxt.Text  = displayText
-                    elem._inputTxt.Color = elem.Text == "" and Theme.TextDisabled or Theme.TextPrimary
-                    if elem._cursor then
-                        -- Clamp cursor so it does not overflow the input box
-                        local inputLeft = elem._x + 4
-                        local inputRight = elem._x + elem._w - 6
-                        local cursorX = math.min(inputLeft + (#elem.Text * 7), inputRight)
-                        elem._cursor.Position = Vector2.new(cursorX, elem._cursor.Position.Y)
-                    end
-                    if elem.Callback then pcall(elem.Callback, elem.Text) end
-                end
-
-                -- Build current held-key set via iskeypressed() on all scannable VK codes.
-                -- We check: Backspace(8), Enter(13), Shift(16), Space(32), A-Z(65-90),
-                -- 0-9(48-57), numpad(96-105), and common punctuation VKs.
-                local SCAN_KEYS = {
-                    8, 13, 16, 32,
-                    48,49,50,51,52,53,54,55,56,57,
-                    65,66,67,68,69,70,71,72,73,74,75,76,77,
-                    78,79,80,81,82,83,84,85,86,87,88,89,90,
-                    96,97,98,99,100,101,102,103,104,105,
-                    107,109,110,186,187,188,189,190,191,192,219,220,221,222
-                }
-                local heldSet = {}
-                for _, k in ipairs(SCAN_KEYS) do
-                    if iskeypressed(k) then
-                        heldSet[k] = true
-                    end
-                end
-
-                local shift = heldSet[16]
-
-                -- Detect newly-pressed keys (edge trigger)
-                for k, _ in pairs(heldSet) do
-                    if not _prevHeldKeys[k] then
-                        -- Key just pressed this frame
-                        _keyRepeatTimer[k] = 0
-                        _keyRepeatFired[k] = false
-                        local handled = false
-
-                        if k == 8 then  -- Backspace
-                            if #elem.Text > 0 then
-                                elem.Text = elem.Text:sub(1, -2)
-                                refreshInputDisplay()
-                            end
-                            handled = true
-                        elseif k == 13 then  -- Enter: commit and unfocus
-                            elem.Focused = false
-                            if elem._cursor then elem._cursor.Visible = false end
-                            _focusedInput = nil
-                            setrobloxinput(true)  -- restore Roblox input on Enter-commit
-                            if elem.Callback then pcall(elem.Callback, elem.Text) end
-                            handled = true
-                        else
-                            -- Convert VK code to character
-                            local char = nil
-                            if k >= 65 and k <= 90 then
-                                -- A–Z
-                                char = shift and string.char(k) or string.char(k + 32)
-                            elseif k >= 48 and k <= 57 then
-                                -- 0–9 row (with shift symbols)
-                                local digits = "0123456789"
-                                local shifted = ")!@#$%^&*("
-                                char = shift and shifted:sub(k-47, k-47) or digits:sub(k-47, k-47)
-                            elseif k == 32 then
-                                char = " "
-                            elseif k == 190 or k == 110 then
-                                char = shift and ">" or "."
-                            elseif k == 188 then
-                                char = shift and "<" or ","
-                            elseif k == 189 or k == 109 then
-                                char = shift and "_" or "-"
-                            elseif k == 191 then
-                                char = shift and "?" or "/"
-                            elseif k == 186 then
-                                char = shift and ":" or ";"
-                            elseif k == 222 then
-                                char = shift and '"' or "'"
-                            elseif k == 219 then
-                                char = shift and "{" or "["
-                            elseif k == 221 then
-                                char = shift and "}" or "]"
-                            elseif k == 220 then
-                                char = shift and "|" or "\\"
-                            elseif k == 187 or k == 107 then
-                                char = shift and "+" or "="
-                            elseif k == 192 then
-                                char = shift and "~" or "`"
-                            elseif k >= 96 and k <= 105 then
-                                -- Numpad 0–9
-                                char = tostring(k - 96)
-                            end
-                            if char and VALID_CHARS[char] then
-                                elem.Text = elem.Text .. char
-                                refreshInputDisplay()
-                                handled = true
-                            end
-                        end
-                        _keyRepeatFired[k] = handled
-                    else
-                        -- Key held — handle auto-repeat after initial delay
-                        if _keyRepeatFired[k] then
-                            _keyRepeatTimer[k] = (_keyRepeatTimer[k] or 0) + 0.016
-                            local delay = _keyRepeatTimer[k] < 0.5 and 0.5 or 0.05
-                            if _keyRepeatTimer[k] >= delay then
-                                _keyRepeatTimer[k] = _keyRepeatTimer[k] < 0.5 and 0.5 or 0
-                                -- Re-fire the same key action
-                                if k == 8 and #elem.Text > 0 then
-                                    elem.Text = elem.Text:sub(1, -2)
-                                    refreshInputDisplay()
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- Keys released since last frame
-                for k, _ in pairs(_prevHeldKeys) do
-                    if not heldSet[k] then
-                        _keyRepeatTimer[k] = nil
-                        _keyRepeatFired[k] = nil
-                    end
-                end
-
-                _prevHeldKeys = heldSet
-            else
-                _prevHeldKeys = {}
-            end
-
-            _lastMouse1 = mouse1
+          i = i + 1
         end
-    end
-end
+      end
 
+      -- ── Tooltip handling
+      for _, tip in ipairs(_tooltips) do
+        local e = tip._elem
+        if e and e._x then
+          local catActive = false
+
+          if e._cat then
+            for _, w in ipairs(_windows) do
+              if w.Visible and not w.Minimized and w.ActiveCat == e._cat then
+                catActive = true
+                break
+              end
+            end
+          else
+            catActive = true
+          end
+
+          local hover = catActive and isInBoxBounds(
+            mPos.X, mPos.Y,
+            e._x, e._y, e._w, e._h
+          )
+
+          tip._bg.Visible  = hover
+          tip._txt.Visible = hover
+
+          if hover then
+            tip._bg.Position  = Vector2.new(mPos.X + 12, mPos.Y - 24)
+            tip._txt.Position = Vector2.new(mPos.X + 18, mPos.Y - 20)
+          end
+        end
+      end
+
+      -- ── Per-window processing
+      local _choosingThisFrame = MatchaUI.Choosing
+
+      for _, win in ipairs(_windows) do
+        if not win.Visible then
+          continue
+        end
+
+        -- Drag window (topbar)
+        if _mouseJustDown and isInBoxBounds(
+          mPos.X, mPos.Y,
+          win.X, win.Y, win.W, win._topBarH
+        ) then
+
+          local onMin = isInBoxBounds(
+            mPos.X, mPos.Y,
+            win._minBtnX, win._minBtnY,
+            win._minBtnW, win._minBtnH
+          )
+
+          local onClose = isInBoxBounds(
+            mPos.X, mPos.Y,
+            win._closeBtnX, win._closeBtnY,
+            win._closeBtnW, win._closeBtnH
+          )
+
+          if not onMin and not onClose then
+            win.Dragging = true
+            win.DragOffX = mPos.X - win.X
+            win.DragOffY = mPos.Y - win.Y
+          end
+        end
+
+        if _mouseJustUp then
+          win.Dragging = false
+        end
+
+        if win.Dragging and mouse1 then
+          local nx = mPos.X - win.DragOffX
+          local ny = mPos.Y - win.DragOffY
+
+          win.Reposition(nx, ny)
+
+          win._minBtnX   = nx + win.W - 52
+          win._minBtnY   = ny + 6
+          win._closeBtnX = nx + win.W - 26
+          win._closeBtnY = ny + 6
+        end
+
+        -- Minimize / Close
+        if _mouseJustDown then
+          if isInBoxBounds(
+            mPos.X, mPos.Y,
+            win._minBtnX, win._minBtnY,
+            win._minBtnW, win._minBtnH
+          ) then
+            win.Minimize()
+          end
+
+          if isInBoxBounds(
+            mPos.X, mPos.Y,
+            win._closeBtnX, win._closeBtnY,
+            win._closeBtnW, win._closeBtnH
+          ) then
+            win.SetVisible(false)
+          end
+        end
+
+        if win.Minimized then
+          continue
+        end
+
+        -- Category selection
+        if _mouseJustDown then
+          for _, cat in ipairs(win.Categories) do
+            if isInBoxBounds(
+              mPos.X, mPos.Y,
+              cat._bg.Position.X, cat._bg.Position.Y,
+              cat._bg.Size.X, cat._bg.Size.Y
+            ) then
+              win._activateCategory(cat)
+            end
+          end
+        end
+
+        -- Element interactions
+        for _, elem in ipairs(win._elements) do
+          if elem._cat ~= win.ActiveCat then
+            continue
+          end
+
+          if not elem._inScrollFrame then
+            if not elem._bg or not elem._bg.Visible then
+              continue
+            end
+          else
+            local inFrame = false
+
+            for _, wElemWrap in ipairs(win._elements) do
+              if wElemWrap.Type == "ScrollFrame" then
+                for _, widget in ipairs(wElemWrap._widgets) do
+                  if widget._elem == elem then
+                    local insideFrame = isInBoxBounds(
+                      mPos.X, mPos.Y,
+                      wElemWrap._x, wElemWrap._y,
+                      wElemWrap._w - 8, wElemWrap._h
+                    )
+
+                    local insidePanel = false
+
+                    if elem.Type == "ColorPicker" and elem._cpOpen then
+                      insidePanel = isInBoxBounds(
+                        mPos.X, mPos.Y,
+                        elem._panelX, elem._panelY,
+                        elem._panelW, elem._panelH
+                      )
+                    end
+
+                    inFrame = insideFrame or insidePanel
+                    break
+                  end
+                end
+
+                if inFrame ~= false then
+                  break
+                end
+              end
+            end
+
+            if not inFrame then
+              continue
+            end
+          end
+                    -- BUTTON (disabled while a dropdown is open)
+          if elem.Type == "Button" and _mouseJustDown and not _choosingThisFrame then
+            if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+              if elem.Callback then pcall(elem.Callback) end
+            end
+          end
+
+          -- TOGGLE (disabled while a dropdown is open)
+          if elem.Type == "Toggle" and _mouseJustDown and not _choosingThisFrame then
+            if isInBoxBounds(mPos.X, mPos.Y, elem._tx, elem._ty, elem._trackW, elem._trackH) then
+              elem.State = not elem.State
+              elem._track.Color = elem.State and Theme.AccentOn or Theme.AccentOff
+              local kx = elem.State
+                and (elem._tx + elem._trackW - elem._knobSz - 2)
+                or  (elem._tx + 2)
+              elem._knob.Position = Vector2.new(kx, elem._ty + 2)
+              if elem.Callback then pcall(elem.Callback, elem.State) end
+            end
+          end
+
+          -- CHECKBOX (disabled while a dropdown is open)
+          if elem.Type == "Checkbox" and _mouseJustDown and not _choosingThisFrame then
+            if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+              elem.State = not elem.State
+              elem._check.Visible = elem.State
+              if elem.Callback then pcall(elem.Callback, elem.State) end
+            end
+          end
+
+          -- SLIDER drag start (disabled while a dropdown is open)
+          if elem.Type == "Slider" and _mouseJustDown and _sliderDrag == nil and not _choosingThisFrame then
+            if isInBoxBounds(mPos.X, mPos.Y, elem._trackX, elem._trackY - 6, elem._trackW, 16) then
+              _sliderDrag = elem
+            end
+          end
+
+          -- DROPDOWN
+          if elem.Type == "Dropdown" and _mouseJustDown then
+            if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+              elem._isOpen = not elem._isOpen
+
+              if elem._isOpen then
+                MatchaUI.Choosing = true
+
+                local bgPos = elem._bg.Position
+                local boxLeft = bgPos.X + elem._bg.Size.X - elem._w
+                local boxTop  = bgPos.Y + elem._h
+
+                for _, item in ipairs(elem._itemObjs) do
+                  local iy = boxTop + (item._idx - 1) * 22
+
+                  item._bg.Position  = Vector2.new(boxLeft, iy)
+                  item._txt.Position = Vector2.new(boxLeft + 4, iy + 4)
+
+                  item._x = boxLeft
+                  item._y = iy
+
+                  item._bg.Visible  = true
+                  item._txt.Visible = true
+                end
+
+              else
+                MatchaUI.Choosing = false
+
+                for _, item in ipairs(elem._itemObjs) do
+                  item._bg.Visible  = false
+                  item._txt.Visible = false
+                end
+              end
+
+              elem._arrow.Text = elem._isOpen and "^" or "v"
+
+            elseif elem._isOpen then
+              local _hit = false
+
+              for _, item in ipairs(elem._itemObjs) do
+                if isInBoxBounds(mPos.X, mPos.Y, item._x, item._y, elem._w, 22) then
+                  elem.Selected     = item._value
+                  elem._selTxt.Text = item._value
+                  _hit = true
+
+                  if elem.Callback then
+                    pcall(elem.Callback, item._value)
+                  end
+                end
+              end
+
+              elem._isOpen = false
+              MatchaUI.Choosing = false
+              elem._arrow.Text = "v"
+
+              for _, item in ipairs(elem._itemObjs) do
+                item._bg.Visible  = false
+                item._txt.Visible = false
+              end
+            end
+          end
+
+          -- KEYBIND
+          if elem.Type == "Keybind" then
+            if _mouseJustDown and not _choosingThisFrame and isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+              elem._pendingListen = true
+              elem.Listening = false
+              elem._kbTxt.Text  = "..."
+              elem._kbTxt.Color = Theme.AccentOn
+            end
+
+            if elem._pendingListen and _mouseJustUp then
+              elem._pendingListen = false
+              elem.Listening = true
+            end
+
+            if elem.Listening then
+              for k, _ in pairs(VALID_KEYBIND_KEYS) do
+                if iskeypressed(k) then
+                  elem.Key = k
+                  elem.Listening = false
+
+                  local name = KeyNames[k] or "?"
+                  elem._kbTxt.Text  = "[ " .. name .. " ]"
+                  elem._kbTxt.Color = Theme.TextPrimary
+
+                  if elem.Callback then
+                    pcall(elem.Callback, k, name)
+                  end
+
+                  break
+                end
+              end
+            end
+          end
+
+          -- TEXT INPUT / SEARCH BAR
+          if elem.Type == "TextInput" then
+            if _mouseJustDown and not _choosingThisFrame then
+              if isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w, elem._h) then
+                if _focusedInput ~= elem then
+                  if _focusedInput then
+                    _focusedInput.Focused = false
+                    if _focusedInput._cursor then
+                      _focusedInput._cursor.Visible = false
+                    end
+                  end
+
+                  _focusedInput = elem
+                  elem.Focused = true
+                  _cursorBlink = 0
+
+                  if elem._inputBg then
+                    elem._inputBg.Color = Theme.InputBg
+                  end
+                end
+
+              elseif elem == _focusedInput then
+                _focusedInput = nil
+                elem.Focused = false
+
+                if elem._cursor then
+                  elem._cursor.Visible = false
+                end
+
+                setrobloxinput(true)
+              end
+            end
+
+            if _mouseJustUp and elem == _focusedInput then
+              setrobloxinput(false)
+            end
+          end
+
+          -- COLOR PICKER
+          if elem.Type == "ColorPicker" then
+            local function setPanelVis(state)
+              elem._panelBg.Visible     = state
+              elem._panelBorder.Visible = state
+
+              for _, sw in ipairs(elem._paletteSwatch or {}) do
+                pcall(function()
+                  sw._r.Visible = state
+                end)
+              end
+
+              local cs = elem._channelSliders or {}
+              for _, ch in ipairs({"R","G","B"}) do
+                local s = cs[ch]
+                if s then
+                  s._lbl.Visible = state
+                  s._val.Visible = state
+                  s._bg.Visible  = state
+                  s._fill.Visible = state
+                  s._knob.Visible = state
+                end
+              end
+
+              elem._hexLabel.Visible  = state
+              elem._prevPatch.Visible = state
+            end
+
+            if _mouseJustDown and isInBoxBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH) then
+              elem._cpOpen = not elem._cpOpen
+              elem._arrowTxt.Text = elem._cpOpen and "<" or ">"
+
+              if elem._cpOpen then
+                local bgPos = elem._bg.Position
+                local newPanelX = win.X + win.W + 4
+                local newPanelY = bgPos.Y
+
+                pcall(function()
+                  elem._panelBg.Position     = Vector2.new(newPanelX, newPanelY)
+                  elem._panelBorder.Position = Vector2.new(newPanelX, newPanelY)
+                end)
+
+                local offsets = elem._panelObjOffsets or {}
+                for _, po in ipairs(elem._panelObjs or {}) do
+                  local off = offsets[i]
+                  if off then
+                    pcall(function()
+                      po.Position = Vector2.new(newPanelX + off.dx, newPanelY + off.dy)
+                    end)
+                  end
+                end
+
+                for _, sw in ipairs(elem._paletteSwatch or {}) do
+                  if sw._origDX then
+                    sw._x = newPanelX + sw._origDX
+                    sw._y = newPanelY + sw._origDY
+                  end
+                end
+
+                local cs = elem._channelSliders or {}
+                for _, s in pairs(cs) do
+                  if s._origTrackDX then s._trackX = newPanelX + s._origTrackDX end
+                  if s._origKnobDY  then s._knobY  = newPanelY + s._origKnobDY  end
+                  if s._origRowDY   then s._rowY   = newPanelY + s._origRowDY   end
+                end
+
+                for _, btn in ipairs(elem._btnObjs or {}) do
+                  if btn._origDX then btn._x = newPanelX + btn._origDX end
+                  if btn._origDY then btn._y = newPanelY + btn._origDY end
+                  if btn._origTrackDX then btn._trackX = newPanelX + btn._origTrackDX end
+                  if btn._origKnobDY then btn._knobY = newPanelY + btn._origKnobDY end
+                end
+
+                elem._panelX = newPanelX
+                elem._panelY = newPanelY
+
+                setPanelVis(true)
+
+              else
+                setPanelVis(false)
+              end
+            end
+
+            if elem._cpOpen then
+              if _mouseJustDown then
+                local inHeader = isInBoxBounds(mPos.X, mPos.Y, elem._headerX, elem._headerY, elem._headerW, elem._headerH)
+                local inPanel  = isInBoxBounds(mPos.X, mPos.Y, elem._panelX, elem._panelY, elem._panelW, elem._panelH)
+
+                if not inHeader and not inPanel then
+                  elem._cpOpen = false
+                  elem._arrowTxt.Text = ">"
+                  setPanelVis(false)
+                end
+              end
+
+              if _mouseJustDown then
+                for _, sw in ipairs(elem._paletteSwatch or {}) do
+                  if isInBoxBounds(mPos.X, mPos.Y, sw._x, sw._y, sw._w, sw._h) then
+                    elem.Color = sw._color
+                    elem._refreshAll()
+                    break
+                  end
+                end
+              end
+
+              if _mouseJustDown and elem._cpDragCh == nil then
+                for _, btn in ipairs(elem._btnObjs or {}) do
+                  if btn._isSlider and isInBoxBounds(mPos.X, mPos.Y, btn._x, btn._y, btn._w, btn._h) then
+                    elem._cpDragCh  = btn._ch
+                    elem._cpDragBtn = btn
+                    break
+                  end
+                end
+              end
+
+              if elem._cpDragCh and mouse1 then
+                local btn2 = elem._cpDragBtn
+                local relX = math.max(0, math.min(mPos.X - btn2._trackX, btn2._trackW))
+                local pct2 = relX / btn2._trackW
+                local newV = math.floor(pct2 * 255)
+
+                local c = elem.Color
+                local rv = math.floor(c.R * 255)
+                local gv = math.floor(c.G * 255)
+                local bv = math.floor(c.B * 255)
+
+                if elem._cpDragCh == "R" then rv = newV
+                elseif elem._cpDragCh == "G" then gv = newV
+                else bv = newV end
+
+                elem.Color = Color3.fromRGB(rv, gv, bv)
+                elem._refreshAll()
+
+              elseif not mouse1 then
+                elem._cpDragCh  = nil
+                elem._cpDragBtn = nil
+              end
+            end
+          end
+          -- SCROLL FRAME: content drag (anywhere in frame) + scrollbar thumb drag
+          if elem.Type == "ScrollFrame" then
+            local sbX = elem._sbX
+            local sbW = 8
+
+            if _mouseJustDown then
+              if isInBoxBounds(mPos.X, mPos.Y, sbX, elem._y, sbW, elem._h) then
+                elem._thumbDragging   = true
+                elem._contentDragging = false
+
+                local maxScroll = math.max(1, elem._innerH - elem._h)
+                local thumbMaxY = math.max(1, elem._h - elem._thumbH)
+                local thumbTopY = elem._y + (elem._scrollY / maxScroll) * thumbMaxY
+
+                elem._thumbDragOffY = mPos.Y - thumbTopY
+
+              elseif isInBoxBounds(mPos.X, mPos.Y, elem._x, elem._y, elem._w - sbW, elem._h) then
+                local onColorPickerHeader = false
+
+                for _, widget in ipairs(elem._widgets) do
+                  local wElem = widget._elem
+
+                  if wElem.Type == "ColorPicker" and wElem._headerX then
+                    if isInBoxBounds(
+                      mPos.X, mPos.Y,
+                      wElem._headerX, wElem._headerY,
+                      wElem._headerW, wElem._headerH
+                    ) then
+                      onColorPickerHeader = true
+                      break
+                    end
+                  end
+                end
+
+                if not onColorPickerHeader then
+                  elem._contentDragging = true
+                  elem._thumbDragging   = false
+                  elem._contentDragStartY      = mPos.Y
+                  elem._contentDragStartScroll = elem._scrollY
+                end
+              end
+            end
+
+            if _mouseJustUp then
+              elem._thumbDragging   = false
+              elem._contentDragging = false
+            end
+
+            if elem._thumbDragging and mouse1 then
+              local maxScroll = math.max(1, elem._innerH - elem._h)
+              local thumbMaxY = math.max(1, elem._h - elem._thumbH)
+
+              local rawY     = mPos.Y - elem._thumbDragOffY
+              local clampedY = math.max(elem._y, math.min(elem._y + thumbMaxY, rawY))
+
+              elem._thumb.Position = Vector2.new(sbX, clampedY)
+
+              local pct = (clampedY - elem._y) / thumbMaxY
+              elem._scrollY = pct * maxScroll
+
+              if elem.Callback then
+                pcall(elem.Callback, elem._scrollY)
+              end
+            end
+
+            if elem._contentDragging and mouse1 then
+              local maxScroll = math.max(0, elem._innerH - elem._h)
+              local dy = mPos.Y - elem._contentDragStartY
+
+              local newScroll = math.max(
+                0,
+                math.min(maxScroll, elem._contentDragStartScroll - dy)
+              )
+
+              elem._scrollY = newScroll
+
+              local thumbMaxY = math.max(1, elem._h - elem._thumbH)
+              local pct = maxScroll > 0 and newScroll / maxScroll or 0
+
+              elem._thumb.Position = Vector2.new(
+                sbX,
+                elem._y + pct * thumbMaxY
+              )
+
+              if elem.Callback then
+                pcall(elem.Callback, elem._scrollY)
+              end
+            end
+
+            if elem._items then
+              for _, item in ipairs(elem._items) do
+                local absY = elem._y + item._relY - elem._scrollY
+
+                item._txt.Position = Vector2.new(elem._x + 6, absY)
+
+                local itemH = elem._itemH or 18
+                item._txt.Visible =
+                  (absY >= elem._y) and
+                  (absY + itemH <= elem._y + elem._h)
+              end
+            end
+
+            if elem._widgets then
+              for _, widget in ipairs(elem._widgets) do
+                local baseAbsY = elem._y + widget._relY - elem._scrollY
+                local wElem    = widget._elem
+                local wHeight  = widget._h or ELEM_H
+
+                local dy = baseAbsY - (wElem._y or baseAbsY)
+
+                if wElem._y then wElem._y = wElem._y + dy end
+                if wElem._ty then wElem._ty = wElem._ty + dy end
+                if wElem._trackY then wElem._trackY = wElem._trackY + dy end
+
+                if wElem.Type == "Dropdown" and wElem._itemObjs then
+                  for _, item in ipairs(wElem._itemObjs) do
+                    if item._y then
+                      item._y = item._y + dy
+                    end
+                  end
+                end
+
+                if wElem.Type == "ColorPicker" and wElem._origHeaderY then
+                  local absHeaderY = baseAbsY
+
+                  wElem._headerY = absHeaderY
+                  wElem._y = absHeaderY
+
+                  local origBase = wElem._origHeaderY
+
+                  for _, btn in ipairs(wElem._btnObjs or {}) do
+                    if btn._origDY then btn._y = baseAbsY + btn._origDY end
+                    if btn._origKnobDY then btn._knobY = baseAbsY + btn._origKnobDY end
+                  end
+
+                  local cs2 = wElem._channelSliders or {}
+                  for _, s2 in pairs(cs2) do
+                    if s2._origKnobDY then s2._knobY = baseAbsY + s2._origKnobDY end
+                    if s2._origRowDY then s2._rowY = baseAbsY + s2._origRowDY end
+                  end
+                end
+
+                local pSet = widget._panelObjSet or {}
+
+                for _, obj in ipairs(widget._objs) do
+                  if pSet[obj] then continue end
+
+                  pcall(function()
+                    obj.Position = obj.Position + Vector2.new(0, dy)
+
+                    local oY = obj.Position.Y
+                    obj.Visible =
+                      (oY >= elem._y) and
+                      (oY + wHeight <= elem._y + elem._h)
+                  end)
+                end
+
+                if wElem.Type == "Checkbox" and wElem._check then
+                  if wElem._check.Visible then
+                    wElem._check.Visible = wElem.State
+                  end
+                end
+
+                if wElem.Type == "TextInput" and wElem._cursor then
+                  if wElem._cursor.Visible and not wElem.Focused then
+                    wElem._cursor.Visible = false
+                  end
+                end
+
+                if wElem.Type == "ColorPicker" and not wElem._cpOpen then
+                  for _, po in ipairs(wElem._panelObjs or {}) do
+                    pcall(function()
+                      po.Visible = false
+                    end)
+                  end
+
+                elseif wElem.Type == "ColorPicker" and wElem._cpOpen then
+                  for _, po in ipairs(wElem._panelObjs or {}) do
+                    pcall(function()
+                      po.Visible = true
+                    end)
+                  end
+                end
+              end
+            end
+          end
+
+          -- SLIDER drag update (global, disabled while a dropdown is open)
+          if _sliderDrag and not MatchaUI.Choosing then
+            if mouse1 then
+              local e    = _sliderDrag
+              local relX = math.max(0, math.min(mPos.X - e._trackX, e._trackW))
+              local pct  = relX / e._trackW
+              local val  = e.Min + (e.Max - e.Min) * pct
+
+              e.Value = val
+              e._valLbl.Text = tostring(math.floor(val))
+              e._fillRect.Size = Vector2.new(math.max(1, relX), 4)
+              e._knob.Position = Vector2.new(
+                e._trackX + relX - e._knobW / 2,
+                e._trackY - 5
+              )
+
+              if e.Callback then
+                pcall(e.Callback, val)
+              end
+            else
+              _sliderDrag = nil
+            end
+          end
+
+          -- Text input character handling
+          if _focusedInput then
+            local elem = _focusedInput
+
+            local function refreshInputDisplay()
+              local displayText = elem.Text == "" and elem._placeholder or elem.Text
+              elem._inputTxt.Text = displayText
+              elem._inputTxt.Color =
+                elem.Text == "" and Theme.TextDisabled or Theme.TextPrimary
+
+              if elem._cursor then
+                local inputLeft  = elem._x + 4
+                local inputRight = elem._x + elem._w - 6
+                local cursorX = math.min(inputLeft + (#elem.Text * 7), inputRight)
+
+                elem._cursor.Position =
+                  Vector2.new(cursorX, elem._cursor.Position.Y)
+              end
+
+              if elem.Callback then
+                pcall(elem.Callback, elem.Text)
+              end
+            end
+
+            local SCAN_KEYS = {
+              8,13,16,32,
+              48,49,50,51,52,53,54,55,56,57,
+              65,66,67,68,69,70,71,72,73,74,75,76,77,
+              78,79,80,81,82,83,84,85,86,87,88,89,90,
+              96,97,98,99,100,101,102,103,104,105,
+              107,109,110,186,187,188,189,190,191,192,219,220,221,222
+            }
+
+            local heldSet = {}
+
+            for _, k in ipairs(SCAN_KEYS) do
+              if iskeypressed(k) then
+                heldSet[k] = true
+              end
+            end
+
+            local shift = heldSet[16]
+
+            for k, _ in pairs(heldSet) do
+              if not _prevHeldKeys[k] then
+                _keyRepeatTimer[k] = 0
+                _keyRepeatFired[k] = false
+
+                local handled = false
+
+                if k == 8 then
+                  if #elem.Text > 0 then
+                    elem.Text = elem.Text:sub(1, -2)
+                    refreshInputDisplay()
+                  end
+                  handled = true
+
+                elseif k == 13 then
+                  elem.Focused = false
+                  if elem._cursor then elem._cursor.Visible = false end
+                  _focusedInput = nil
+                  setrobloxinput(true)
+
+                  if elem.Callback then
+                    pcall(elem.Callback, elem.Text)
+                  end
+                  handled = true
+
+                else
+                  local char = nil
+
+                  if k >= 65 and k <= 90 then
+                    char = shift and string.char(k) or string.char(k + 32)
+
+                  elseif k >= 48 and k <= 57 then
+                    local digits = "0123456789"
+                    local shifted = ")!@#$%^&*("
+                    char = shift and shifted:sub(k - 47, k - 47)
+                      or digits:sub(k - 47, k - 47)
+
+                  elseif k == 32 then char = " "
+                  elseif k == 190 or k == 110 then char = shift and ">" or "."
+                  elseif k == 188 then char = shift and "<" or ","
+                  elseif k == 189 or k == 109 then char = shift and "_" or "-"
+                  elseif k == 191 then char = shift and "?" or "/"
+                  elseif k == 186 then char = shift and ":" or ";"
+                  elseif k == 222 then char = shift and '"' or "'"
+                  elseif k == 219 then char = shift and "{" or "["
+                  elseif k == 221 then char = shift and "}" or "]"
+                  elseif k == 220 then char = shift and "|" or "\\"
+                  elseif k == 187 or k == 107 then char = shift and "+" or "="
+                  elseif k == 192 then char = shift and "~" or "`"
+
+                  elseif k >= 96 and k <= 105 then
+                    char = tostring(k - 96)
+                  end
+
+                  if char and VALID_CHARS[char] then
+                    elem.Text = elem.Text .. char
+                    refreshInputDisplay()
+                    handled = true
+                  end
+                end
+
+                _keyRepeatFired[k] = handled
+
+              else
+                if _keyRepeatFired[k] then
+                  _keyRepeatTimer[k] = (_keyRepeatTimer[k] or 0) + 0.016
+                  local delay = _keyRepeatTimer[k] < 0.5 and 0.5 or 0.05
+
+                  if _keyRepeatTimer[k] >= delay then
+                    _keyRepeatTimer[k] =
+                      _keyRepeatTimer[k] < 0.5 and 0.5 or 0
+
+                    if k == 8 and #elem.Text > 0 then
+                      elem.Text = elem.Text:sub(1, -2)
+                      refreshInputDisplay()
+                    end
+                  end
+                end
+              end
+            end
+
+            for k, _ in pairs(_prevHeldKeys) do
+              if not heldSet[k] then
+                _keyRepeatTimer[k] = nil
+                _keyRepeatFired[k] = nil
+              end
+            end
+
+            _prevHeldKeys = heldSet
+
+          else
+            _prevHeldKeys = {}
+          end
+
+          _lastMouse1 = mouse1
+        end
+      end
+    end
+  end)
+end
 
 
 function MatchaUI.Destroy()

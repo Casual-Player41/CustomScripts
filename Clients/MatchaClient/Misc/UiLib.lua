@@ -442,11 +442,14 @@ function MatchaUI.CreateWindow(opts)
               for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
               elem._svCursor.Visible = false
               local cs = elem._channelSliders or {}
-              for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
-                s._lbl.Visible=false; s._val.Visible=false
-                s._bg.Visible=false; s._fill.Visible=false
-                if s._knob then s._knob.Visible=false end
-              end end
+              for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] 
+                if s then
+                  s._lbl.Visible = false; s._val.Visible = false
+                  s._bg.Visible = false; s._fill.Visible = false
+                  if s._knob then s._knob.Visible = false 
+                  end
+                end 
+              end
               elem._hexLabel.Visible = false
               if elem._prevPatch then elem._prevPatch.Visible = false end
               for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
@@ -570,11 +573,14 @@ function MatchaUI.CreateWindow(opts)
         for _, sv in ipairs(elem._svRects) do sv._r.Visible = false end
         elem._svCursor.Visible = false
         local cs = elem._channelSliders or {}
-        for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] if s then
-          s._lbl.Visible=false; s._val.Visible=false
-          s._bg.Visible=false; s._fill.Visible=false
-          if s._knob then s._knob.Visible=false end
-        end end
+        for _, ch in ipairs({"R","G","B"}) do local s=cs[ch] 
+          if s then
+            s._lbl.Visible = false; s._val.Visible = false
+            s._bg.Visible=false; s._fill.Visible=false
+            if s._knob then s._knob.Visible=false 
+            end
+          end 
+        end
         elem._hexLabel.Visible = false
         if elem._prevPatch then elem._prevPatch.Visible = false end
         for _, sw in ipairs(elem._paletteSwatch or {}) do pcall(function() sw._r.Visible = false end) end
@@ -1247,181 +1253,250 @@ function MatchaUI.CreateWindow(opts)
     return elem
   end
 
-  -- ── SCROLLING FRAME; visH  : visible height of the frame (px). innerH auto-grows as widgets are added. Supports both text rows (AddItem) and full UI elements (AddWidget). Scrolling is controlled by dragging the scrollbar thumb or content drag. Each frame in the main loop re-positions and clips all child objects.
-  local function addScrollFrame(cat, innerH, callback, customVisH)
-        local cx   = contentX()
-        local cw   = contentW()
-        local cy   = contentCursorY(cat)
-        local visH = customVisH or math.min(innerH, 80)
-        local objs = {}
-        local bg   = draw(createRectangle(cx, cy, cw, visH, Theme.InputBg, baseZ+5, true));trackTheme("InputBg", bg)
-        -- clip border
-        local border = draw(createRectangle(cx, cy, cw, visH, Theme.ElementBorder, baseZ+5, false));trackTheme("ElementBorder", border)
-        border.Filled = false
-        border.Thickness = 1
-        -- scrollbar track
-        local sbX     = cx + cw - 8
-        local sbTrack = draw(createRectangle(sbX, cy, 6, visH, Theme.ScrollBar, baseZ+6, true));trackTheme("ScrollBar", sbTrack)
-        -- thumb (height proportional to content)
-        local thumbH = math.max(20, math.floor(visH * visH / math.max(innerH, 1)))
-        local thumb  = draw(createRectangle(sbX, cy, 6, thumbH, Theme.ScrollThumb, baseZ+7, true));trackAccent(thumb)
-        table.insert(objs, bg);table.insert(objs, border)
-        table.insert(objs, sbTrack);table.insert(objs, thumb)
-        registerElem(cat, objs, visH)
+-- ── SCROLLING FRAME; visH : visible height of the frame (px). innerH auto-grows as widgets are added. Supports both text rows (AddItem) and full UI elements (AddWidget). Scrolling is controlled by dragging the scrollbar thumb or content drag. Each frame in the main loop re-positions and clips all child objects.
+local function addScrollFrame(cat, innerH, callback, customVisH)
+  local cx = contentX()
+  local cw = contentW()
+  local cy = contentCursorY(cat)
+  local visH = customVisH or math.min(innerH, 80)
+  local objs = {}
 
-        -- BUG 2 FIX: content width leaves room for the scrollbar so widgets never overlap it.
-        -- 10 = 8px scrollbar track + 2px inner padding gap.
-        local contentPadRight = 10
-        local innerCW = cw - contentPadRight
+  local bg = draw(createRectangle(cx, cy, cw, visH, Theme.InputBg, baseZ + 5, true))
+  trackTheme("InputBg", bg)
 
-        local elem = {
-            Type = "ScrollFrame", _bg = bg, _draws = objs,
-            _x = cx, _y = cy, _w = cw, _h = visH,
-            _sbX = sbX,
-            _thumb = thumb, _thumbH = thumbH,
-            _innerH = innerH, _scrollY = 0,
-            _thumbDragging = false, _thumbDragOffY = 0,
-            _contentDragging = false, _contentDragStartY = 0, _contentDragStartScroll = 0,
-            _items = {},   -- { _txt=DrawObj, _relY=number }
-            _widgets = {}, -- { _objs={DrawObj,...}, _relY=number, _h=number }
-            _itemH = 18,
-            Callback = callback,
-        }
+  -- clip border
+  local border = draw(createRectangle(cx, cy, cw, visH, Theme.ElementBorder, baseZ + 5, false))
+  trackTheme("ElementBorder", border)
+  border.Filled = false
+  border.Thickness = 1
 
-        function elem:AddItem(text)
-            local rowIdx = #self._items
-            local relY = rowIdx * self._itemH + 4
-            local absY = self._y + relY
-            local _ = innerCW
-            local txt = draw(createText(text, self._x + 6, absY, 12, Theme.TextPrimary, baseZ+8, false, false))
-            txt.Visible = (absY >= self._y) and (absY + self._itemH <= self._y + self._h)
-            table.insert(self._items, {_txt = txt, _relY = relY})
-            table.insert(objs, txt)
+  -- scrollbar track
+  local sbX = cx + cw - 8
+  local sbTrack = draw(createRectangle(sbX, cy, 6, visH, Theme.ScrollBar, baseZ + 6, true))
+  trackTheme("ScrollBar", sbTrack)
 
-            local neededH = (#self._items) * self._itemH + 8
-            if neededH > self._innerH then
-                self._innerH = neededH
-                local newThH = math.max(20, math.floor(self._h * self._h / self._innerH))
-                self._thumbH = newThH
-                self._thumb.Size = Vector2.new(6, newThH)
-            end
+  -- thumb (height proportional to content)
+  local thumbH = math.max(20, math.floor(visH * visH / math.max(innerH, 1)))
+  local thumb = draw(createRectangle(sbX, cy, 6, thumbH, Theme.ScrollThumb, baseZ + 7, true))
+  trackAccent(thumb)
 
-            if win.ActiveCat ~= cat then txt.Visible = false end
-            return txt
-        end
+  table.insert(objs, bg)
+  table.insert(objs, border)
+  table.insert(objs, sbTrack)
+  table.insert(objs, thumb)
 
-        function elem:AddWidget(builder)
-            local neededInnerH = 0
-            for _, w in ipairs(self._widgets) do neededInnerH = neededInnerH + w._h + 2 end
-            for _, it in ipairs(self._items) do neededInnerH = neededInnerH + self._itemH end
-            local relY = neededInnerH + 4
+  registerElem(cat, objs, visH)
 
-            local builtElem = builder()
-            if not builtElem then return nil end
+  -- BUG 2 FIX: content width leaves room for the scrollbar so widgets never overlap it.
+  -- 10 = 8px scrollbar track + 2px inner padding gap.
+  local contentPadRight = 10
+  local innerCW = cw - contentPadRight
 
-            local wh = builtElem._h or ELEM_H
-            local absY = self._y + relY - self._scrollY
-            local dyFix = absY - (builtElem._y or absY)
+  local elem = {
+    Type = "ScrollFrame",
+    _bg = bg,
+    _draws = objs,
+    _x = cx,
+    _y = cy,
+    _w = cw,
+    _h = visH,
+    _sbX = sbX,
+    _thumb = thumb,
+    _thumbH = thumbH,
+    _innerH = innerH,
+    _scrollY = 0,
+    _thumbDragging = false,
+    _thumbDragOffY = 0,
+    _contentDragging = false,
+    _contentDragStartY = 0,
+    _contentDragStartScroll = 0,
+    _items = {},
+    _widgets = {},
+    _itemH = 18,
+    Callback = callback,
+  }
 
-            local dxW = innerCW - (builtElem._w or cw)
-            if dxW < 0 then
-                if builtElem._bg then
-                    pcall(function()
-                        local s = builtElem._bg.Size
-                        builtElem._bg.Size = Vector2.new(s.X + dxW, s.Y)
-                    end)
-                end
-                builtElem._w = (builtElem._w or cw) + dxW
-            end
+  function elem:AddItem(text)
+    local rowIdx = #self._items
+    local relY = rowIdx * self._itemH + 4
+    local absY = self._y + relY
 
-            builtElem._inScrollFrame = true
+    local txt = draw(createText(text, self._x + 6, absY, 12, Theme.TextPrimary, baseZ + 8, false, false))
+    txt.Visible = (absY >= self._y) and (absY + self._itemH <= self._y + self._h)
 
-            local panelObjSet = {}
-            if builtElem._panelObjs then
-                for _, po in ipairs(builtElem._panelObjs) do panelObjSet[po] = true end
-            end
-            if builtElem.Type == "Dropdown" and builtElem._itemObjs then
-                for _, item in ipairs(builtElem._itemObjs) do
-                    if item._bg then panelObjSet[item._bg] = true end
-                    if item._txt then panelObjSet[item._txt] = true end
-                end
-            end
+    table.insert(self._items, { _txt = txt, _relY = relY })
+    table.insert(objs, txt)
 
-            local lastObjs = cat._elemObjs[#cat._elemObjs]
-            local widgetObjs = {}
-            if lastObjs then
-                for _, o in ipairs(lastObjs) do
-                    table.insert(widgetObjs, o)
-                    table.insert(objs, o)
+    local neededH = (#self._items) * self._itemH + 8
+    if neededH > self._innerH then
+      self._innerH = neededH
+      local newThH = math.max(20, math.floor(self._h * self._h / self._innerH))
+      self._thumbH = newThH
+      self._thumb.Size = Vector2.new(6, newThH)
+    end
 
-                    if not panelObjSet[o] then
-                        pcall(function()
-                            o.Position = o.Position + Vector2.new(0, dyFix)
-                        end)
-                        local oAbsY = o.Position.Y
-                        o.Visible = (oAbsY >= self._y) and (oAbsY < self._y + self._h)
-                    end
-                end
-                table.remove(cat._elemObjs, #cat._elemObjs)
-            end
-
-            if builtElem._y then builtElem._y = builtElem._y + dyFix end
-            if builtElem._ty then builtElem._ty = builtElem._ty + dyFix end
-            if builtElem._trackY then builtElem._trackY = builtElem._trackY + dyFix end
-
-            if builtElem.Type == "Dropdown" and builtElem._itemObjs then
-                for _, item in ipairs(builtElem._itemObjs) do
-                    if item._y then item._y = item._y + dyFix end
-                end
-            end
-
-            if builtElem.Type == "ColorPicker" then
-                if builtElem._headerY then
-                    builtElem._headerY = builtElem._headerY + dyFix
-                end
-                builtElem._origHeaderY = builtElem._headerY
-
-                for _, btn in ipairs(builtElem._btnObjs or {}) do
-                    if btn._y then btn._y = btn._y + dyFix end
-                    if btn._knobY then btn._knobY = btn._knobY + dyFix end
-                end
-
-                local cs = builtElem._channelSliders or {}
-                for _, s in pairs(cs) do
-                    if s._knobY then s._knobY = s._knobY + dyFix end
-                    if s._rowY then s._rowY = s._rowY + dyFix end
-                end
-            end
-
-            table.insert(self._widgets, {_objs = widgetObjs, _relY = relY, _h = wh, _elem = builtElem, _panelObjSet = panelObjSet})
-
-            local totalH = relY + wh + 8
-            if totalH > self._innerH then
-                self._innerH = totalH
-                local newThH = math.max(20, math.floor(self._h * self._h / self._innerH))
-                self._thumbH = newThH
-                self._thumb.Size = Vector2.new(6, newThH)
-            end
-
-            if win.ActiveCat ~= cat then
-                for _, o in ipairs(widgetObjs) do pcall(function() o.Visible = false end) end
-            end
-
-            return builtElem
-        end
-
-        registerElemDesc(cat, elem)
-        return elem
+    if win.ActiveCat ~= cat then txt.Visible = false end
+    return txt
   end
 
-   -- ── TOOLTIP (attached to element, shown on hover)
-  local function addTooltip(elem, tipText)
-        local ttBg = newDraw("Square");ttBg.Size = Vector2.new(#tipText * 7 + 12, 20);ttBg.Color = Theme.TooltipBg;ttBg.ZIndex = baseZ + 90;ttBg.Filled = true;ttBg.Transparency = 1;ttBg.Visible = false
-        local ttTxt = newDraw("Text");ttTxt.Text = tipText;ttTxt.Size = 12;ttTxt.Color = Theme.TextPrimary;ttTxt.ZIndex = baseZ + 91;ttTxt.Center = false;ttTxt.Outline = true;ttTxt.Font = Drawing.Fonts.Monospace;ttTxt.Transparency = 1;ttTxt.Visible = false
-        local tip = {_bg = ttBg, _txt = ttTxt, _elem = elem, Text = tipText}
-        table.insert(_tooltips, tip)
-        return tip
+  function elem:AddWidget(builder)
+    local neededInnerH = 0
+
+    for _, w in ipairs(self._widgets) do
+      neededInnerH = neededInnerH + w._h + 2
+    end
+
+    for _, it in ipairs(self._items) do
+      neededInnerH = neededInnerH + self._itemH
+    end
+
+    local relY = neededInnerH + 4
+
+    local builtElem = builder()
+    if not builtElem then return nil end
+
+    local wh = builtElem._h or ELEM_H
+    local absY = self._y + relY - self._scrollY
+    local dyFix = absY - (builtElem._y or absY)
+
+    local dxW = innerCW - (builtElem._w or cw)
+    if dxW < 0 then
+      if builtElem._bg then
+        pcall(function()
+          local s = builtElem._bg.Size
+          builtElem._bg.Size = Vector2.new(s.X + dxW, s.Y)
+        end)
+      end
+      builtElem._w = (builtElem._w or cw) + dxW
+    end
+
+    builtElem._inScrollFrame = true
+
+    local panelObjSet = {}
+
+    if builtElem._panelObjs then
+      for _, po in ipairs(builtElem._panelObjs) do
+        panelObjSet[po] = true
+      end
+    end
+
+    if builtElem.Type == "Dropdown" and builtElem._itemObjs then
+      for _, item in ipairs(builtElem._itemObjs) do
+        if item._bg then panelObjSet[item._bg] = true end
+        if item._txt then panelObjSet[item._txt] = true end
+      end
+    end
+
+    local lastObjs = cat._elemObjs[#cat._elemObjs]
+    local widgetObjs = {}
+
+    if lastObjs then
+      for _, o in ipairs(lastObjs) do
+        table.insert(widgetObjs, o)
+        table.insert(objs, o)
+
+        if not panelObjSet[o] then
+          pcall(function()
+            o.Position = o.Position + Vector2.new(0, dyFix)
+          end)
+
+          local oAbsY = o.Position.Y
+          o.Visible = (oAbsY >= self._y) and (oAbsY < self._y + self._h)
+        end
+      end
+
+      table.remove(cat._elemObjs, #cat._elemObjs)
+    end
+
+    if builtElem._y then builtElem._y = builtElem._y + dyFix end
+    if builtElem._ty then builtElem._ty = builtElem._ty + dyFix end
+    if builtElem._trackY then builtElem._trackY = builtElem._trackY + dyFix end
+
+    if builtElem.Type == "Dropdown" and builtElem._itemObjs then
+      for _, item in ipairs(builtElem._itemObjs) do
+        if item._y then item._y = item._y + dyFix end
+      end
+    end
+
+    if builtElem.Type == "ColorPicker" then
+      if builtElem._headerY then
+        builtElem._headerY = builtElem._headerY + dyFix
+      end
+
+      builtElem._origHeaderY = builtElem._headerY
+
+      for _, btn in ipairs(builtElem._btnObjs or {}) do
+        if btn._y then btn._y = btn._y + dyFix end
+        if btn._knobY then btn._knobY = btn._knobY + dyFix end
+      end
+
+      local cs = builtElem._channelSliders or {}
+      for _, s in pairs(cs) do
+        if s._knobY then s._knobY = s._knobY + dyFix end
+        if s._rowY then s._rowY = s._rowY + dyFix end
+      end
+    end
+
+    table.insert(self._widgets, {
+      _objs = widgetObjs,
+      _relY = relY,
+      _h = wh,
+      _elem = builtElem,
+      _panelObjSet = panelObjSet
+    })
+
+    local totalH = relY + wh + 8
+    if totalH > self._innerH then
+      self._innerH = totalH
+      local newThH = math.max(20, math.floor(self._h * self._h / self._innerH))
+      self._thumbH = newThH
+      self._thumb.Size = Vector2.new(6, newThH)
+    end
+
+    if win.ActiveCat ~= cat then
+      for _, o in ipairs(widgetObjs) do
+        pcall(function() o.Visible = false end)
+      end
+    end
+
+    return builtElem
   end
+
+  registerElemDesc(cat, elem)
+  return elem
+end
+
+-- ── TOOLTIP (attached to element, shown on hover)
+local function addTooltip(elem, tipText)
+  local ttBg = newDraw("Square")
+  ttBg.Size = Vector2.new(#tipText * 7 + 12, 20)
+  ttBg.Color = Theme.TooltipBg
+  ttBg.ZIndex = baseZ + 90
+  ttBg.Filled = true
+  ttBg.Transparency = 1
+  ttBg.Visible = false
+
+  local ttTxt = newDraw("Text")
+  ttTxt.Text = tipText
+  ttTxt.Size = 12
+  ttTxt.Color = Theme.TextPrimary
+  ttTxt.ZIndex = baseZ + 91
+  ttTxt.Center = false
+  ttTxt.Outline = true
+  ttTxt.Font = Drawing.Fonts.Monospace
+  ttTxt.Transparency = 1
+  ttTxt.Visible = false
+
+  local tip = {
+    _bg = ttBg,
+    _txt = ttTxt,
+    _elem = elem,
+    Text = tipText
+  }
+
+  table.insert(_tooltips, tip)
+  return tip
+end
 
 
   -- Expose public API on window
@@ -1609,10 +1684,10 @@ function MatchaUI.Notify(title, message, duration)
 end
 
 
--- DEFAULT BUILT-IN PRESETS; Used by AddConfigPreset when no presets table is supplied.
 
 
-local DEFAULT_PRESETS = {
+
+local DEFAULT_PRESETS = { -- DEFAULT BUILT-IN PRESETS; Used by AddConfigPreset when no presets table is supplied.
   ["Default (Lime)"] = {
     accent = Color3.fromRGB(57, 255, 20),
     Background = Color3.fromHex("#0A0A0A"),
@@ -1642,6 +1717,8 @@ local DEFAULT_PRESETS = {
     SectionHeader = Color3.fromHex("#1A1A1A"),
   },
 }
+
+--[[
 -- ─────────────────────────────────────────────────────────────
 -- ADD CONFIG PRESET
 -- ─────────────────────────────────────────────────────────────
@@ -1667,123 +1744,134 @@ local DEFAULT_PRESETS = {
 --
 -- The category is created, populated, and the saved config is applied
 -- before this function returns.  Call it before UiLib.Run().
+]]
+
 function MatchaUI.AddConfigPreset(win, opts)
-    opts = opts or {}
-    local CONFIG_PATH = opts.configPath or "MatchaUI/Config.json"
-    local THEMES_DIR  = opts.themesDir  or "MatchaUI/Themes"
-    local kbHandle    = opts.toggleKeybind   -- may be nil; internal kbWidget used instead
-    local builtinPresets = opts.presets or DEFAULT_PRESETS
+  opts = opts or {}
+  local CONFIG_PATH = opts.configPath or "MatchaUI/Config.json"
+  local THEMES_DIR  = opts.themesDir or "MatchaUI/Themes"
+  local kbHandle    = opts.toggleKeybind
+  local builtinPresets = opts.presets or DEFAULT_PRESETS
 
-    -- ── Helpers ───────────────────────────────────────────────
-    local function c3hex(c)
-        return string.format("#%02X%02X%02X",
-            math.floor(c.R*255), math.floor(c.G*255), math.floor(c.B*255))
+  -- ── Helpers ───────────────────────────────────────────────
+local function c3hex(c)
+  return string.format("#%02X%02X%02X",
+    math.floor(c.R * 255),
+    math.floor(c.G * 255),
+    math.floor(c.B * 255)
+  )
+end
+
+  local function hex3c(h)
+    h = (h or "000000"):gsub("#", "")
+    return Color3.fromRGB(
+      tonumber(h:sub(1, 2), 16) or 0,
+      tonumber(h:sub(3, 4), 16) or 0,
+      tonumber(h:sub(5, 6), 16) or 0
+    )
+  end
+
+  local THEME_SLOT_KEYS = {
+    "Background", "TopBar", "LeftBar", "CategoryHover", "CategoryText",
+    "ContentBg", "ElementBg", "ElementBorder", "AccentOff",
+    "TextPrimary", "TextSecondary", "TextDisabled",
+    "SliderTrack", "SliderKnob", "DropdownBg", "DropdownItem",
+    "DropdownHover", "InputBg", "TooltipBg", "NotifBg",
+    "ScrollBar", "TitleText", "CloseBtn", "MinimizeBtn", "SectionHeader",
+  }
+
+  -- ── Defaults ──────────────────────────────────────────────
+  local DEFAULT = {
+    ToggleKeybindVK = kbHandle and kbHandle.Key or 0x2D,
+    AccentHex       = "#39FF14",
+    Font            = "Monospace",
+    ThemePreset     = "Default (Lime)",
+    ThemeColors     = {},
+  }
+
+  -- ── Live state ────────────────────────────────────────────
+  local _cfg = {
+    ToggleKeybindVK = DEFAULT.ToggleKeybindVK,
+    AccentHex       = DEFAULT.AccentHex,
+    Font            = DEFAULT.Font,
+    ThemePreset     = DEFAULT.ThemePreset,
+    ThemeColors     = {},
+  }
+
+  -- ── Persist ───────────────────────────────────────────────
+  local function saveConfig()
+    pcall(function()
+      local HttpService = game:GetService("HttpService")
+      writefile(CONFIG_PATH, HttpService:JSONEncode(_cfg))
+    end)
+  end
+
+  local function readConfig()
+    if isfile(CONFIG_PATH) then
+      local ok, data = pcall(function()
+        local HttpService = game:GetService("HttpService")
+        return HttpService:JSONDecode(readfile(CONFIG_PATH))
+      end)
+      if ok and data then return data end
     end
-    local function hex3c(h)
-        h = (h or "000000"):gsub("#","")
-        return Color3.fromRGB(
-            tonumber(h:sub(1,2),16) or 0,
-            tonumber(h:sub(3,4),16) or 0,
-            tonumber(h:sub(5,6),16) or 0)
-    end
+    return DEFAULT
+  end
 
-    local THEME_SLOT_KEYS = {
-        "Background","TopBar","LeftBar","CategoryHover","CategoryText",
-        "ContentBg","ElementBg","ElementBorder","AccentOff",
-        "TextPrimary","TextSecondary","TextDisabled",
-        "SliderTrack","SliderKnob","DropdownBg","DropdownItem",
-        "DropdownHover","InputBg","TooltipBg","NotifBg",
-        "ScrollBar","TitleText","CloseBtn","MinimizeBtn","SectionHeader",
-    }
+  -- ── Theme files ───────────────────────────────────────────
+  local function listCustomThemes()
+    local names = {}
 
-    -- ── Defaults ──────────────────────────────────────────────
-    local DEFAULT = {
-        ToggleKeybindVK = kbHandle and kbHandle.Key or 0x2D,
-        AccentHex       = "#39FF14",
-        Font            = "Monospace",
-        ThemePreset     = "Default (Lime)",
-        -- ThemeColors: persisted per-key hex strings, written on every SetThemeColor call
-        -- from the Theme Key picker. On startup these override the preset's colors.
-        ThemeColors     = {},
-    }
+    if isfolder(THEMES_DIR) then
+      local ok, files = pcall(listfiles, THEMES_DIR)
 
-    -- ── Live state (written to disk on every change) ───────────
-    local _cfg = {
-        ToggleKeybindVK = DEFAULT.ToggleKeybindVK,
-        AccentHex       = DEFAULT.AccentHex,
-        Font            = DEFAULT.Font,
-        ThemePreset     = DEFAULT.ThemePreset,
-        ThemeColors     = {},  -- { [key] = "#RRGGBB" }
-    }
-
-    -- ── Persist ───────────────────────────────────────────────
-    local function saveConfig()
-        pcall(function()
-            local HttpService = game:GetService("HttpService")
-            writefile(CONFIG_PATH, HttpService:JSONEncode(_cfg))
-        end)
-    end
-
-    local function readConfig()
-        if isfile(CONFIG_PATH) then
-            local ok, data = pcall(function()
-                local HttpService = game:GetService("HttpService")
-                return HttpService:JSONDecode(readfile(CONFIG_PATH))
-            end)
-            if ok and data then return data end
+      if ok then
+        for _, path in ipairs(files) do
+          local name = path:match("([^/\\]+)%.json$")
+          if name then table.insert(names, name) end
         end
-        return DEFAULT
+      end
     end
 
-    -- ── Custom theme file helpers ──────────────────────────────
-    local function listCustomThemes()
-        local names = {}
-        if isfolder(THEMES_DIR) then
-            local ok, files = pcall(listfiles, THEMES_DIR)
-            if ok then
-                for _, path in ipairs(files) do
-                    local name = path:match("([^/\\]+)%.json$")
-                    if name then table.insert(names, name) end
-                end
-            end
-        end
-        return names
+    return names
+  end
+
+  local function saveCustomTheme(name, accentHex, themeColors)
+    if not isfolder(THEMES_DIR) then pcall(makefolder, THEMES_DIR); end
+
+    local out = { accentHex = accentHex }
+
+    for _, k in ipairs(THEME_SLOT_KEYS) do
+      if themeColors and themeColors[k] then
+        out[k] = themeColors[k]
+      else
+        local liveColor = Theme and Theme[k]
+        out[k] = liveColor and c3hex(liveColor) or "#000000"
+      end
     end
 
-    -- saveCustomTheme now saves the live ThemeColors (all individually-edited slot colors)
-    -- plus the accent hex, so the custom theme file is a complete snapshot of the UI state.
-    local function saveCustomTheme(name, accentHex, themeColors)
-        if not isfolder(THEMES_DIR) then pcall(makefolder, THEMES_DIR) end
-        local out = { accentHex = accentHex }
-        -- Persist every theme slot. If the user has picked a color for a slot via the
-        -- Theme Key picker, use that; otherwise fall back to the live Theme table default.
-        for _, k in ipairs(THEME_SLOT_KEYS) do
-            if themeColors and themeColors[k] then
-                out[k] = themeColors[k]
-            else
-                -- Read live color from Theme table as fallback
-                local liveColor = Theme and Theme[k]
-                out[k] = liveColor and c3hex(liveColor) or "#000000"
-            end
-        end
-        pcall(function()
-            local HttpService = game:GetService("HttpService")
-            writefile(THEMES_DIR.."/"..name..".json", HttpService:JSONEncode(out))
-        end)
+    pcall(function()
+      local HttpService = game:GetService("HttpService")
+      writefile(THEMES_DIR .. "/" .. name .. ".json", HttpService:JSONEncode(out))
+    end)
+  end
+
+  local function loadCustomTheme(name)
+    local path = THEMES_DIR .. "/" .. name .. ".json"
+
+    if isfile(path) then
+      local ok, data = pcall(function()
+        local HttpService = game:GetService("HttpService")
+        return HttpService:JSONDecode(readfile(path))
+      end)
+
+      if ok and data then return data end
     end
 
-    local function loadCustomTheme(name)
-        local path = THEMES_DIR.."/"..name..".json"
-        if isfile(path) then
-            local ok, data = pcall(function()
-                local HttpService = game:GetService("HttpService")
-                return HttpService:JSONDecode(readfile(path))
-            end)
-            if ok and data then return data end
-        end
-        return nil
-    end
+    return nil
+  end
 
+
+  
     -- ── Apply a custom theme data table to the live UI ─────────
     local function applyCustomData(data)
         local accent = hex3c(data.accentHex or "#39FF14")
@@ -2086,44 +2174,43 @@ function MatchaUI.AddConfigPreset(win, opts)
     return cat
 end
 
--- ── Attach AddConfigPreset to every window handle via CreateWindow ──
--- We wrap it so `win.AddConfigPreset(opts)` works naturally.
--- (registered below, after CreateWindow's win table is returned)
 
--- Call this from a ColorPicker callback (or any time) to re-theme the
--- entire UI to a new accent color instantly.
--- @param color  Color3  — the new accent color
 function MatchaUI.SetAccentColor(color)
-    AccentColor           = color
-    Theme.CategoryActive  = color
-    Theme.AccentOn        = color
-    Theme.SliderFill      = color
-    Theme.InputBorder     = color
-    Theme.NotifBorder     = color
-    Theme.ScrollThumb     = color
-    Theme.SectionText     = color
-    -- Repaint all registered accent-colored objects
-    for _, obj in ipairs(_accentObjects) do
-        pcall(function() obj.Color = color end)
+  AccentColor = color
+  Theme.CategoryActive = color
+  Theme.AccentOn = color
+  Theme.SliderFill = color
+  Theme.InputBorder = color
+  Theme.NotifBorder = color
+  Theme.ScrollThumb = color
+  Theme.SectionText = color
+
+  -- Repaint all registered accent-colored objects
+  for _, obj in ipairs(_accentObjects) do
+    pcall(function() obj.Color = color end)
+  end
+
+  -- Repaint toggle tracks that are currently ON
+  for _, win in ipairs(_windows) do
+    for _, elem in ipairs(win._elements) do
+      if elem.Type == "Toggle" and elem.State and elem._track then
+        pcall(function() elem._track.Color = color end)
+      end
     end
-    -- Repaint toggle tracks that are currently ON
-    for _, win in ipairs(_windows) do
-        for _, elem in ipairs(win._elements) do
-            if elem.Type == "Toggle" and elem.State and elem._track then
-                pcall(function() elem._track.Color = color end)
-            end
-        end
-        -- Active category bg
-        if win.ActiveCat and win.ActiveCat._bg then
-            pcall(function() win.ActiveCat._bg.Color = color end)
-        end
+
+    -- Active category bg
+    if win.ActiveCat and win.ActiveCat._bg then
+      pcall(function() win.ActiveCat._bg.Color = color end)
     end
-    -- Repaint notification accent bars currently on screen
-    for _, n in ipairs(_notifs) do
-        pcall(function() n._bar.Color    = color end)
-        pcall(function() n._title.Color  = color end)
-    end
+  end
+
+  -- Repaint notification accent bars currently on screen
+  for _, n in ipairs(_notifs) do
+    pcall(function() n._bar.Color = color end)
+    pcall(function() n._title.Color = color end)
+  end
 end
+
 
 -- ─────────────────────────────────────────────────────────────
 -- SET THEME COLOR
@@ -2134,67 +2221,77 @@ end
 -- @param key    string   — Theme table key (e.g. "Background", "TopBar")
 -- @param color  Color3   — new color value
 function MatchaUI.SetThemeColor(key, color)
-    if Theme[key] == nil then
-        warn("MatchaUI.SetThemeColor: unknown theme key '" .. tostring(key) .. "'")
-        return
+  if Theme[key] == nil then
+    warn("MatchaUI.SetThemeColor: unknown theme key '" .. tostring(key) .. "'")
+    return
+  end
+
+  Theme[key] = color
+
+  -- Repaint all objects registered under this exact theme key.
+  -- No color-comparison needed — each object is directly tagged to its key.
+  local list = _themeObjects[key]
+  if list then
+    for _, obj in ipairs(list) do
+      pcall(function() obj.Color = color end)
     end
-    Theme[key] = color
-    -- Repaint all objects registered under this exact theme key.
-    -- No color-comparison needed — each object is directly tagged to its key.
-    local list = _themeObjects[key]
-    if list then
-        for _, obj in ipairs(list) do
-            pcall(function() obj.Color = color end)
-        end
-    end
+  end
 end
 
--- ─────────────────────────────────────────────────────────────
--- SET FONT
--- ─────────────────────────────────────────────────────────────
--- Change the global font for all text Drawing objects immediately.
--- Available font names: UI, System, SystemBold, Minecraft, Monospace, Pixel, Fortnite
--- @param fontName  string  — one of the names listed above (case-sensitive)
+
+
 function MatchaUI.SetFont(fontName)
-    local fontMap = {
-        UI          = Drawing.Fonts.UI,
-        System      = Drawing.Fonts.System,
-        SystemBold  = Drawing.Fonts.SystemBold,
-        Minecraft   = Drawing.Fonts.Minecraft,
-        Monospace   = Drawing.Fonts.Monospace,
-        Pixel       = Drawing.Fonts.Pixel,
-        Fortnite    = Drawing.Fonts.Fortnite,
-    }
-    local font = fontMap[fontName]
-    if not font then
-        warn("MatchaUI.SetFont: unknown font '" .. tostring(fontName) ..
-             "'. Valid options: UI, System, SystemBold, Minecraft, Monospace, Pixel, Fortnite")
-        return
-    end
-    _currentFont = font
-    -- Repaint all tracked Text Drawing objects
-    for _, obj in ipairs(_textObjects) do
-        pcall(function() obj.Font = font end)
-    end
-end
+  local fontMap = {
+    UI = Drawing.Fonts.UI,
+    System = Drawing.Fonts.System,
+    SystemBold = Drawing.Fonts.SystemBold,
+    Minecraft = Drawing.Fonts.Minecraft,
+    Monospace = Drawing.Fonts.Monospace,
+    Pixel = Drawing.Fonts.Pixel,
+    Fortnite = Drawing.Fonts.Fortnite,
+  }
 
+  local font = fontMap[fontName]
+
+  if not font then
+    warn("MatchaUI.SetFont: unknown font '" .. tostring(fontName) ..". Valid options: UI, System, SystemBold, Minecraft, Monospace, Pixel, Fortnite")
+    return
+  end
+
+  _currentFont = font
+
+
+  for _, obj in ipairs(_textObjects) do
+    pcall(function() obj.Font = font end)
+  end
+end
 
 local VALID_CHARS = {}
 do
-    local s = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?-_@#%&*()[]<>:;'/\\"
-    for i = 1, #s do
-        VALID_CHARS[s:sub(i,i)] = true
-    end
+  local s = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?-_@#%&*()[]<>:;'/\\"
+  for i = 1, #s do
+    VALID_CHARS[s:sub(i, i)] = true
+  end
 end
 
--- ─────────────────────────────────────────────────────────────
--- MAIN LOOP
--- ─────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
 local _sliderDrag = nil  -- currently dragged slider elem
 local _cursorBlink = 0
 local _prevHeldKeys   = {}  -- VK keys held last frame (for edge detection in text input)
 local _keyRepeatTimer = {}  -- per-key hold timer (seconds)
 local _keyRepeatFired = {}  -- whether the key generated at least one character
+
+
+
+--#endregion
 
 function MatchaUI.Run()
     while true do
@@ -3035,17 +3132,19 @@ function MatchaUI.Run()
     end
 end
 
--- ─────────────────────────────────────────────────────────────
--- CLEANUP
--- ─────────────────────────────────────────────────────────────
+
+
 function MatchaUI.Destroy()
-    for _, obj in ipairs(_objects) do
-        pcall(function() obj:Remove() end)
-    end
-    _objects  = {}
-    _windows  = {}
-    _notifs   = {}
-    _tooltips = {}
+  for _, obj in ipairs(_objects) do
+    pcall(function() 
+      obj:Remove() 
+    end)
+  end
+
+  _objects  = {}
+  _windows  = {}
+  _notifs   = {}
+  _tooltips = {}
 end
 
 return MatchaUI
